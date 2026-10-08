@@ -1,0 +1,91 @@
+# 每天检查上游有没有变：变了就重解析 + 体检 + 更新内容指纹并提交；
+# 任何一步失败就开一个 issue（不靠人盯日志）。
+#
+# 只提交 sync/fingerprint.json（纯哈希，不含正文）—— 于是"上游哪天动了哪几条"
+# 在仓库的 git 历史里一直查得到，而我们自己仓库里没有别人的正文。
+name: 同步上游
+
+on:
+  schedule:
+    - cron: '0 22 * * *' # UTC 22:00 = 北京时间 06:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 同步上游
+        run: python3 tools/sync.py
+
+      - name: 上游提交没变就跳过
+        id: gate
+        run: |
+          NEW=$(python3 -c "import json;print(json.load(open('build/upstream.json'))['commit'])")
+          OLD=$(python3 -c "import json;print(json.load(open('sync/fingerprint.json')).get('commit',''))" 2>/dev/null || echo "")
+          echo "上游 $OLD → $NEW"
+          if [ "$NEW" = "$OLD" ]; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 解析 → 体检 → 保真 → MCP 数据 → 指纹
+        if: steps.gate.outputs.skip == '0'
+        run: |
+          python3 tools/parse.py
+          python3 tools/check_drift.py
+          python3 tools/check_verbatim.py
+          python3 tools/build_mcp_data.py
+          python3 tools/fingerprint.py --diff
+          python3 tools/fingerprint.py
+
+      - name: 把摘要写进运行页
+        if: steps.gate.outputs.skip == '0'
+        run: |
+          {
+            echo "### 上游同步"
+            echo '```'
+            python3 tools/fingerprint.py --diff
+            echo '```'
+            cat build/drift.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 内容变了就提交指纹
+        if: steps.gate.outputs.skip == '0'
+        run: |
+          git config user.name "helios"
+          git config user.email "helioswei1995@gmail.com"
+          if git diff --quiet sync/fingerprint.json; then
+            echo "指纹没变，不提交"
+          else
+            SHA=$(python3 -c "import json;print(json.load(open('build/upstream.json'))['commit_short'])")
+            SUMMARY=$(python3 tools/fingerprint.py --diff | head -1)
+            git add sync/fingerprint.json
+            git commit -m "chore(sync): 同步上游 ${SHA}；${SUMMARY}"
+            git push
+          fi
+
+      - name: 出事就开 issue（格式变了 / 校验不过 / 同步失败）
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="上游同步检查失败：$(date -u -d '+8 hours' +'%Y-%m-%d')"
+          BODY=$(printf '自动同步在 %s 失败了，看这次运行的日志：\n\n%s/%s/actions/runs/%s\n\n常见原因：\n- 上游改了正文格式（解析器不认了）\n- 保真校验不一致（说明我们的产物和原文对不上）\n- 上游新增了没见过的标签取值\n\n本地复现：`bash tools/sync_all.sh`\n' \
+            "$(date -u -d '+8 hours' +'%Y-%m-%d %H:%M')" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          gh issue create --title "$TITLE" --body "$BODY" --label "" || \
+            gh issue create --title "$TITLE" --body "$BODY"

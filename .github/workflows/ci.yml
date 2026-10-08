@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  book:
+    name: 解析与保真校验
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 同步上游（浅克隆，记录 commit）
+        run: python3 tools/sync.py
+
+      - name: 解析正文 → build/entries.json
+        run: python3 tools/parse.py
+
+      - name: 格式体检（上游改格式 / 新增取值要在这里红）
+        run: python3 tools/check_drift.py
+
+      - name: 保真校验（逐字段比对上游原文）
+        run: python3 tools/check_verbatim.py
+
+      - name: 指纹比对（内容是否变过 —— PR 里看得见改了哪几条）
+        run: python3 tools/fingerprint.py --diff
+
+      - name: 检测器自测（六种破坏方式必须都被抓到）
+        run: python3 tools/test_detection.py --upstream .cache/upstream
+
+      - name: 把产物与统计挂到本次运行
+        run: |
+          echo "### 解析结果" >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open('build/entries.json', encoding='utf-8'))
+          s, src = d['stats'], d['source']
+          print(f"- 上游版本：`{src['commit_short']}`（{src['commit_date']}）")
+          print(f"- 节 {s['sections']} · 条目 {s['entries']}")
+          print(f"- 证据等级：{s['evidence']}")
+          print(f"- 收益量级：{s['benefit']}")
+          print(f"- 交叉引用 {s['xrefs']} 处（指向不存在 {s['xrefs_missing']} 处）")
+          PY

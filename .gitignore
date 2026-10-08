@@ -1,0 +1,30 @@
+# 本地产物与文档，不提交
+DESIGN.md
+DESIGN.pdf
+DESIGN-*.md
+docs/*.local.md
+
+# 试验品（认可后再并入 site/ 与 tools/）
+prototype/
+
+# 上游正文副本与缓存（构建时取，不入库）
+.cache/
+upstream/
+build/
+dist/
+data/
+
+# 依赖与运行产物
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.venv-*/
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,51 @@
+{
+  "name": "howtolivebetter-mcp",
+  "version": "0.1.0",
+  "description": "《高性价比人生指南》的 MCP 服务：让 AI 助手先查这 672 条循证建议再回答，每条都注明第几节第几条。非官方，正文 CC BY 4.0 转载自 eternity4719/HowToLiveBetter。",
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "howtolivebetter",
+    "高性价比人生指南",
+    "循证",
+    "evidence-based"
+  ],
+  "license": "MIT",
+  "author": "Helioswei",
+  "homepage": "https://github.com/Helioswei/HowToLiveBetter-Kit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Helioswei/HowToLiveBetter-Kit.git"
+  },
+  "type": "module",
+  "bin": {
+    "howtolivebetter-mcp": "dist/cli.js"
+  },
+  "main": "dist/server.js",
+  "files": [
+    "dist",
+    "data/book.json",
+    "LICENSE",
+    "LICENSE-CONTENT",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test",
+    "sync": "bash tools/sync_all.sh",
+    "data": "python3 tools/parse.py && python3 tools/build_mcp_data.py",
+    "prepublishOnly": "npm run build && node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

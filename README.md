@@ -1,0 +1,201 @@
+# HowToLiveBetter-Kit
+
+把《高性价比人生指南》接给 AI 助手用：一个 **MCP 服务** + 一套**国内可访问的静态站**工具。
+
+672 条建议，34 节。装上一个 MCP 客户端，你问「替朋友担保签不签」，AI 会先去查这本书，
+再把原文读给你听，并注明**出自第几节第几条**；书里没写的，它会说没写。
+
+**非官方项目**，与原作者无关联。正文一个字未改，只做了结构化解析与排版处理。
+
+> An unofficial MCP server + static-site toolkit for the Chinese evidence-graded life guide
+> 《高性价比人生指南》 by [eternity4719](https://github.com/eternity4719/HowToLiveBetter) (CC BY 4.0).
+
+---
+
+## 状态
+
+| 部分 | 状态 |
+|:---|:---|
+| MCP 服务（四个工具） | ✅ 可用，19 个测试全绿 |
+| npm 包 `howtolivebetter-mcp` | ⏳ 待发布（先按下面「从源码跑」用） |
+| 在线阅读版 `better.aigcwei.cn` | ⏳ 部署中 |
+| 每日自动同步上游 | ✅ 已配（`.github/workflows/sync.yml`） |
+
+---
+
+## 30 秒装上
+
+发布后只需要一行配置（不需要 API key、不需要联网）：
+
+```json
+{
+  "mcpServers": {
+    "howtolivebetter": {
+      "command": "npx",
+      "args": ["-y", "howtolivebetter-mcp"]
+    }
+  }
+}
+```
+
+放到对应位置即可：
+
+| 客户端 | 放哪里 |
+|:---|:---|
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json`（macOS） |
+| Cursor | 项目里 `.cursor/mcp.json`，或全局 `~/.cursor/mcp.json` |
+| Claude Code | 一条命令：`claude mcp add howtolivebetter -- npx -y howtolivebetter-mcp` |
+| Cherry Studio / Cline / 其它 | 图形界面里填命令 `npx`，参数 `-y howtolivebetter-mcp` |
+| Hermes Agent | `~/.hermes/config.yaml` 里加 `mcp_servers:`（见下） |
+
+<details>
+<summary>Hermes Agent 的写法</summary>
+
+```yaml
+mcp_servers:
+  howtolivebetter:
+    command: "npx"
+    args: ["-y", "howtolivebetter-mcp"]
+    timeout: 30
+```
+</details>
+
+### 从源码跑（npm 包发布前用这个）
+
+```bash
+git clone https://github.com/Helioswei/HowToLiveBetter-Kit.git
+cd HowToLiveBetter-Kit
+npm install
+npm run sync          # 同步上游正文 → 生成数据 → 编译 → 跑测试
+```
+
+然后用 `node dist/cli.js` 当命令（把上面配置里的 `npx -y howtolivebetter-mcp`
+换成 `node /绝对路径/HowToLiveBetter-Kit/dist/cli.js`）。
+
+---
+
+## 装上之后能问什么
+
+- 替朋友担保签不签？替人担保前要看清什么？
+- 我妈 60 多岁总说膝盖疼，书里有什么不花钱的建议？
+- 被裁了，头一个月先办哪些事、能领什么？
+- 有人在我面前倒地没呼吸，先做什么？
+- 孩子发烧，家里那几种退烧药哪些不能给？
+- 攒了 20 万，怎么放才不被费率和骗局吃掉？
+
+真实返回长这样（问「担保」，节选）：
+
+```
+高性价比人生指南 · 作者 eternity4719 · CC BY 4.0 · 非官方转载（正文未改动，只做了结构化与排版处理）
+许可 https://creativecommons.org/licenses/by/4.0/ ｜ 原始仓库 https://github.com/eternity4719/HowToLiveBetter
+同步自上游 a18ee40519（2026-10-08）｜ 共 672 条 / 34 节
+
+【第 8 节第 18 条】借钱写清借条，替人担保前先想清楚自己愿不愿意替他还
+  性价比 极高 · 收益 大 · 证据 A 级 · 口径 金钱 · 成本 钱0/时间少/毅力否
+  说人话：借条要写全：出借人、借款人、金额、利率、期限、还款方式，双方签名。……
+  替人担保时看清有没有「连带」两个字。……
+```
+
+---
+
+## 四个工具
+
+| 工具 | 干什么 | 主要参数 |
+|:---|:---|:---|
+| `search` | 按关键词 + 条件找条目，返回标题、说人话、成本标签、证据等级、出处 | `query`、`evidence`(A/B/C)、`money`(0/少/多)、`time`(少/中/多)、`will`(否/些/是)、`benefit`(大/中/小)、`caliber`(死亡率/金钱/时间/自由)、`ratio`(极高/高/一般)、`section`、`limit` |
+| `get_entry` | 按节号 + 条号取一整条（成本 / 说人话 / 收益 / 证据等级 / 来源 / 备注） | `section`、`num` |
+| `list_sections` | 34 节目录，带每节回答的问题和条数 | `section`（可选） |
+| `daily` | 按日期稳定取一条，同一天同一条 | `date`（可选） |
+
+筛选口径来自书上自己的标签，不是我们发明的：成本按「钱 / 时间 / 毅力」各三档，
+收益量级大中小，口径分死亡率 / 金钱 / 时间 / 自由，证据等级 A / B / C。
+性价比档（极高 / 高 / 一般）用的是上游 `tools/lib/book.mjs` 里那套算法，逐字照抄 ——
+免得用户在我们这儿和官方检索页看到两个不一样的数。
+
+---
+
+## 为什么可以信它
+
+**1. 只检索，不生成。** 服务端没有任何模型调用，也不联网：返回的每个字都是原文切片。
+不解释、不换算、不补数字。不需要 API key，答案可复现。
+
+**2. 查不到就说查不到。** 关键词是字面匹配（不是语义检索），命中率低于阈值就直接回
+「书里没有写这件事」并给最接近的几节 —— 把不相关的建议推给模型，比说"没写"更糟。
+
+**3. 保真校验是可以自己跑的。**
+
+```bash
+python3 tools/check_verbatim.py     # 逐字段比对上游原文：8064 项，0 失配
+python3 tools/test_detection.py     # 六种破坏方式，检测器必须全部抓到
+```
+
+第二条是重点：**一个永远通过的检测器等于没有检测器**，
+所以这个仓库里连"检测器是否有效"都有自测（改字段名、用没见过的标签取值、
+新增字段、加条目、改写正文、删掉一整节 —— 六种都得被抓到）。
+
+---
+
+## 它不是什么
+
+先说清楚，免得白点进来：
+
+- **不是又一个在线阅读版**。[cdyforever/how-to-live-better](https://github.com/cdyforever/how-to-live-better) 已经做了，
+  而且每天自动跟随上游重新生成 —— 再做一个只会更差。这个仓库做的是**给 AI 用的接口**。
+- **不是结构化数据集**。[sin0317/htlb-dataset](https://github.com/sin0317/htlb-dataset) 已经做了（JSON / CSV / SQLite），
+  还进了上游 README。我们自用解析，但不重复发布。
+- **不是翻译版**。英 / 俄 / 韩 / 日 / 泰 / 越南语等已有十来个版本。
+- **不是 App、不是打卡清单**。iOS App、微信小程序、网页版清单都有了。
+- **没有服务端**。没有后端、没有数据库、没有账号。
+
+选 MCP 的理由很直接：这本书旁边已经站了一个 5 万星的库和一整圈衍生工具，
+但**让任何 AI 客户端直接按这本书回答的 MCP 服务，当时还没有人做**。
+
+---
+
+## 它是怎么跟上上游的
+
+上游一天改好几轮的库，我们自己不盯：
+
+- **每天 06:00（北京）** 自动检查上游提交，没变就跳过（不产生噪音提交）。
+- 变了 → 重新解析 → 过四道检查 → 更新内容指纹并提交。
+- **任何一步失败自动开 issue**（附运行链接和本地复现命令）。
+- 内容指纹只存哈希（`sync/fingerprint.json`），所以"上游哪天动了哪几条"在 git 历史里查得到，
+  而这个仓库里没有一个字是别人的正文。
+
+四道检查：字段名 / 新增字段 / 新标签取值 / 断号 / 条数增减（`check_drift.py`）、
+逐字段保真（`check_verbatim.py`）、内容变动（`fingerprint.py`）、
+检测器自测（`test_detection.py`）。
+
+---
+
+## 开发
+
+```bash
+npm install
+npm run sync        # 同步 → 解析 → 体检 → 保真 → 数据 → 指纹 → 编译 → 测试
+npm test            # 14 个单元 + 5 个端到端（真起 stdio 服务）
+npm run typecheck
+```
+
+目录：
+
+```
+src/           MCP 服务（TypeScript，stdio）
+tools/         同步与解析（Python，只用标准库，兼容 3.9）
+sync/          内容指纹（可入库，只存哈希）
+test/          单元 + 端到端测试
+```
+
+---
+
+## 许可
+
+- **代码：MIT**（见 [LICENSE](LICENSE)）。
+- **正文：《高性价比人生指南》** 作者 [eternity4719](https://github.com/eternity4719/HowToLiveBetter)，
+  许可 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)，**原样转载、未作内容改动**。
+  本项目不做任何再授权（CC BY 4.0 第 2(a)(5)(b) 条也不允许转载方施加额外限制）。
+  下游使用时的署名义务见 [LICENSE-CONTENT](LICENSE-CONTENT)。
+
+正本以原始仓库为准；本项目可能滞后于上游，每页/每次返回都标注同步到的是哪个提交。
+
+医学内容不构成诊疗意见，法律内容不构成法律意见；个案请咨询执业医师或律师。
