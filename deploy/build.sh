@@ -37,8 +37,12 @@ python3 deploy/scripts/inject.py --root "$WORK/site" --out dist \
   --config deploy/site-config.json --config-url "$CONFIG_URL"
 
 # 自检：注入后每页都要有备案号，且不许残留占位符；四个电子版都要在
-miss=$(grep -rL 'ICP备' dist --include='*.html' | wc -l | tr -d ' ')
-left=$(grep -rl 'id="site-header"></div>' dist --include='*.html' | wc -l | tr -d ' ')
+# ⚠️ 两处坑：
+#   1. grep 在「一行都没匹配」时退出码是 1，set -e 下会让脚本直接挂 —— 必须 || true
+#   2. download/ 里是镜像来的上游电子版（PDF/EPUB/离线单文件），那是**下载附件**不是本站页面，
+#      本来就没有我们的外壳与备案号，必须排除
+miss=$({ grep -rL 'ICP备' dist --include='*.html' --exclude-dir=download || true; } | wc -l | tr -d ' ')
+left=$({ grep -rl 'id="site-header"></div>' dist --include='*.html' --exclude-dir=download || true; } | wc -l | tr -d ' ')
 echo "  缺备案号的页面：${miss}　残留占位符的页面：${left}"
 if [ "$miss" != "0" ] || [ "$left" != "0" ]; then echo "✗ 外壳注入不合格"; exit 1; fi
 for f in HowToLiveBetter.epub HowToLiveBetter.pdf HowToLiveBetter.html HowToLiveBetter.apkg; do

@@ -57,6 +57,10 @@ def main():
 
     pages = []
     for dp, _dn, fns in os.walk(root):
+        # download/ 里是镜像来的上游电子版（PDF/EPUB/离线单文件）：那是下载附件，
+        # 不是本站页面，没有外壳与备案号也不该有，一律不算页面
+        if os.sep + "download" in dp + os.sep:
+            continue
         for fn in fns:
             if fn.endswith(".html"):
                 pages.append(os.path.relpath(os.path.join(dp, fn), root))
