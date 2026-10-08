@@ -1,0 +1,80 @@
+# 站点发布（GitHub Actions）
+#
+# 把 710 个页面 + 四个电子版打成一个 site.tar.gz，挂到固定 Release「site-latest」上。
+# better.aigcwei.cn 的构建脚本只拉这一个文件 —— 少一个失败点，也免得 Makers 的构建环境
+# 去直连 GitHub 的多个下载地址（实测国内直连 github.com 时通时断）。
+#
+# 内容变了就重建；每天 06:30（北京）跟在上游同步（06:00）后面再跑一次。
+name: 站点产物
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/build_site.py'
+      - 'tools/check_site.py'
+      - 'tools/lib/**'
+      - 'src/**'
+      - 'deploy/**'
+      - '.github/workflows/site.yml'
+  schedule:
+    - cron: '30 22 * * *' # UTC 22:30 = 北京时间 06:30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: site-release
+  cancel-in-progress: true
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 同步上游 → 规范化数据
+        run: |
+          python3 tools/sync.py
+          python3 tools/parse.py
+          python3 tools/build_mcp_data.py
+
+      - name: 生成静态站
+        run: python3 tools/build_site.py --base https://better.aigcwei.cn
+
+      - name: 站点自检（结构/SEO/零 JS/链接/保真/索引/sitemap）
+        run: python3 tools/check_site.py
+
+      - name: 镜像上游的四个电子版
+        run: |
+          mkdir -p build/site/download
+          base=https://github.com/eternity4719/HowToLiveBetter/releases/download/epub-latest
+          for f in HowToLiveBetter.epub HowToLiveBetter.pdf HowToLiveBetter.html HowToLiveBetter.apkg; do
+            curl -fSL --retry 3 --retry-delay 3 --max-time 300 "$base/$f" -o "build/site/download/$f"
+            size=$(wc -c < "build/site/download/$f")
+            echo "$f $(echo "$size" | awk '{printf "%.2f MB", $1/1048576}')"
+            if [ "$size" -lt 50000 ]; then echo "✗ $f 只有 ${size}B，镜像不像成功"; exit 1; fi
+          done
+
+      - name: 打包
+        run: |
+          tar -czf site.tar.gz -C build/site .
+          ls -la site.tar.gz
+          echo " 页面数 $(tar -tzf site.tar.gz | grep -c '\.html$')" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 发布到 Release site-latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="正文同步自上游 ${{ github.sha }}，生成于 $(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')（北京时间）。$(tar -tzf site.tar.gz | grep -c '\.html$') 个页面 + 四个电子版，站点构建脚本固定拉这一个文件。"
+          if gh release view site-latest >/dev/null 2>&1; then
+            gh release edit site-latest --title "站点产物（自动更新）" --notes "$notes"
+          else
+            gh release create site-latest --title "站点产物（自动更新）" --notes "$notes" --latest=false
+          fi
+          gh release upload site-latest site.tar.gz --clobber

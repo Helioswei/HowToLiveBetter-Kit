@@ -1,0 +1,16 @@
+{
+  "brand": "Helios",
+  "siteName": "Helios's AILab",
+  "icp": "鄂ICP备2026041178号",
+  "icpUrl": "https://beian.miit.gov.cn/",
+  "nav": [
+    { "label": "博客", "href": "https://aigcwei.cn/", "site": "home" },
+    { "label": "教程", "href": "https://aigcwei.cn/learn/", "site": "learn" },
+    { "label": "关于", "href": "https://aigcwei.cn/about/", "site": "about" },
+    { "label": "GitHub", "href": "https://github.com/Helioswei", "external": true }
+  ],
+  "social": {
+    "github": { "label": "GitHub", "url": "https://github.com/Helioswei" },
+    "wechat": { "label": "公众号 AIGCWorld", "url": "", "qr": "https://assets.aigcwei.cn/wechat-qr.jpg" }
+  }
+}

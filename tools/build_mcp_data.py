@@ -71,7 +71,8 @@ def main():
             "x": [list(r) for r in e["xrefs"]],
         })
 
-    sections = [{"n": s["num"], "t": s["title"], "q": s["question"], "count": len(s["entries"])}
+    sections = [{"n": s["num"], "t": s["title"], "q": s["question"], "intro": s["intro"],
+                 "count": len(s["entries"])}
                 for s in data["sections"]]
 
     src = dict(data["source"])

@@ -215,5 +215,12 @@ def inline(text, sec, entry_titles):
     return s
 
 
+def split_paras(text):
+    """把字段文本切成段落：上游字段多是单行，少数用空行分段。"""
+    if not text:
+        return []
+    return [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
+
+
 def entry_titles(book):
     return {(s["num"], e["num"]): e["title"] for s in book["sections"] for e in s["entries"]}
