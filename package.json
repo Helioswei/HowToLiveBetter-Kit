@@ -19,11 +19,11 @@
   },
   "type": "module",
   "bin": {
-    "howtolivebetter-mcp": "dist/cli.js"
+    "howtolivebetter-mcp": "lib/cli.js"
   },
-  "main": "dist/server.js",
+  "main": "lib/server.js",
   "files": [
-    "dist",
+    "lib",
     "data/book.json",
     "LICENSE",
     "LICENSE-CONTENT",

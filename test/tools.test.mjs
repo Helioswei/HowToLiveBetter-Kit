@@ -2,9 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { loadBook, titleIndex } from "../dist/data.js";
-import { daily, getEntryText, search, searchText, sectionsText } from "../dist/tools.js";
-import { credit } from "../dist/format.js";
+import { loadBook, titleIndex } from "../lib/data.js";
+import { daily, getEntryText, search, searchText, sectionsText } from "../lib/tools.js";
+import { credit } from "../lib/format.js";
 
 const book = loadBook();
 

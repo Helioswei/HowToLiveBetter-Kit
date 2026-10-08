@@ -16,6 +16,8 @@ data/
 
 # 依赖与运行产物
 node_modules/
+# TS 编译产物（只忽略根目录的 lib/；tools/lib 是源码，不能忽略）
+/lib/
 __pycache__/
 *.pyc
 *.pyo

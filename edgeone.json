@@ -1,4 +1,5 @@
 {
   "buildCommand": "bash deploy/build.sh",
-  "outputDirectory": "deploy/dist"
+  "installCommand": "true",
+  "outputDirectory": "dist"
 }

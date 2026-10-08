@@ -1,7 +1,25 @@
 # 上线 better.aigcwei.cn（EdgeOne Makers）
 
-这套东西**不需要新建部署仓库**：Makers 直接读本仓库根的 `edgeone.json`，
-构建命令是 `bash deploy/build.sh`，产物目录 `deploy/dist`。
+这套东西**不需要新建部署仓库**：Makers 直接读本仓库根的 `edgeone.json`。
+
+## 控制台那几栏怎么填
+
+官方文档原文（edgeone.json 一节）：`buildCommand` / `installCommand` / `outputDirectory`
+三项都是 **"Override the … in Console - Makers Project - Project Settings"** ——
+也就是说**仓库根的 `edgeone.json` 覆盖控制台设置**。所以控制台填错的唯一后果是"看着别扭"，
+真正生效的是文件。但表单不填走不下去，按下面填（与文件一致，双保险）：
+
+| 栏位 | 填什么 |
+|:---|:---|
+| 框架预设 | `Other` |
+| 根目录 | `./` |
+| 输出目录 | `dist` |
+| 构建命令 | `bash deploy/build.sh` |
+| 安装命令 | 留空最好；必填就填 `npm install`（我们的构建不需要任何 node 依赖，白装一次而已） |
+
+> 仓库根 `dist/` 是**站点产物**（MCP 的 TS 编译产物在 `lib/`，两者不抢目录）。
+> 根 `edgeone.json` 里把 `installCommand` 写成了 `true` —— 就是让安装步骤变成空操作，
+> 少一个可能失败的环节。如果 Makers 报"安装命令无效"，把它删掉、改在控制台填 `npm install`。
 
 ## 构建链（每一步都会自检，失败就不出产物）
 
@@ -21,8 +39,8 @@ deploy/build.sh
 
 ## 上手步骤
 
-1. **EdgeOne 控制台 → Makers → 新建项目**，仓库选 `Helioswei/HowToLiveBetter-Kit`，
-   分支 `main`。构建配置读仓库里的 `edgeone.json`，不用手填（和 website 一样是"配置即代码"）。
+1. **EdgeOne 控制台 → Makers → 新建项目**，仓库选 `Helioswei/HowToLiveBetter-Kit`，分支 `main`，
+   五栏按上面那张表填（也可以照填，反正 `edgeone.json` 会覆盖）。
 2. 首次构建会看构建日志；成功后拿到 Makers 给的默认域名，先点开验收：
    ```bash
    curl -s -o /dev/null -w '%{http_code}\n' https://<默认域名>/

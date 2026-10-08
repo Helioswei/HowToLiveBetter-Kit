@@ -78,3 +78,8 @@ jobs:
             gh release create site-latest --title "站点产物（自动更新）" --notes "$notes" --latest=false
           fi
           gh release upload site-latest site.tar.gz --clobber
+
+      - name: 上线彩排（从 Release 下载 → 按部署脚本注入 → 自检）
+        env:
+          SITE_TARBALL: https://github.com/${{ github.repository }}/releases/download/site-latest/site.tar.gz
+        run: bash deploy/build.sh
