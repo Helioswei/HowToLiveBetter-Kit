@@ -15,7 +15,11 @@ on:
       - 'tools/check_site.py'
       - 'tools/lib/**'
       - 'src/**'
-      - 'deploy/**'
+      - 'deploy/build.sh'
+      - 'deploy/scripts/**'
+      - 'deploy/edgeone.json'
+      - 'deploy/site-config.json'
+      - 'sync/fingerprint.json' # 每日同步上游后（sync.yml 提交指纹）也刷新一次产物
       - '.github/workflows/site.yml'
   schedule:
     - cron: '30 22 * * *' # UTC 22:30 = 北京时间 06:30
@@ -83,3 +87,21 @@ jobs:
         env:
           SITE_TARBALL: https://github.com/${{ github.repository }}/releases/download/site-latest/site.tar.gz
         run: bash deploy/build.sh
+
+      # Makers 是"代码一推就自动构建"的，但它构建时读的是 Release 里的产物包 ——
+      # 而那个包是本 workflow 这次才更新的，所以它永远慢一步（表现：线上落后一版，
+      # 而且每天自动同步的内容根本上不了线）。这里在产物确认更新后拍一个空提交，
+      # 让 Makers 再构建一次，这次就能拉到刚上传的新包。
+      # 提交只动 deploy/.deploy-poke 一个文件，且该路径不在本 workflow 的触发列表里，
+      # 所以不会自我循环。
+      - name: 拍一下仓库，让 Makers 重新构建（拉到刚上传的产物）
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "helios"
+          git config user.email "helioswei1995@gmail.com"
+          UP=$(python3 -c "import json;print(json.load(open('build/upstream.json'))['commit_short'])")
+          printf 'upstream=%s\nsite_built_at=%s\n' "$UP" "$(date -u -d '+8 hours' '+%Y-%m-%d %H:%M')（北京时间）" > deploy/.deploy-poke
+          git add deploy/.deploy-poke
+          git commit -q -m "chore(deploy): 触发 Makers 重新构建（产物已更新，上游 ${UP}）"
+          git push
+          echo "已拍：Makers 会重新构建并拉到新的 site.tar.gz"
