@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "author": "Helioswei",
-  "homepage": "https://github.com/Helioswei/HowToLiveBetter-Kit",
+  "homepage": "https://better.aigcwei.cn",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Helioswei/HowToLiveBetter-Kit.git"
@@ -47,5 +47,11 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
+  },
+  "bugs": {
+    "url": "https://github.com/Helioswei/HowToLiveBetter-Kit/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
   }
 }

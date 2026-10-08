@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "3"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "4"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -45,6 +45,42 @@ TOKENS = """:root {
 
 STYLE = TOKENS + """
 /* 这一份是 better 站自己的样式，叠在共享的 assets.aigcwei.cn/style.css 之上 */
+/* ---- 深色主题：默认跟随系统（不需要 JS），用户选过就用 data-theme 覆盖 ---- */
+@media (prefers-color-scheme: dark) and (not (prefers-color-scheme: light)) {
+  :root { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
+          --hairline: #2e3238; --hairline-soft: #262a30;
+          --ink: #e9e5df; --ink-secondary: #ada79e; --muted: #837d74;
+          --accent: #cf6a4f; --accent-strong: #e08567; --accent-soft: #2a1f1a; }
+}
+html[data-theme="dark"] { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
+          --hairline: #2e3238; --hairline-soft: #262a30;
+          --ink: #e9e5df; --ink-secondary: #ada79e; --muted: #837d74;
+          --accent: #cf6a4f; --accent-strong: #e08567; --accent-soft: #2a1f1a; }
+/* 主站共享样式给 .container/.article 的浅色底与深色字，在深色模式下要跟着走 */
+html[data-theme="dark"] .container, html[data-theme="dark"] .article,
+html[data-theme="dark"] .article-body, html[data-theme="dark"] .article-header,
+html[data-theme="dark"] .breadcrumb { background: transparent; color: var(--ink); }
+html[data-theme="dark"] .article-body a { color: var(--accent-strong); }
+
+/* ---- 字号 / 行距档位（阅读设置那一行控制；默认不设属性 = 标准）---- */
+html[data-size="s"] { font-size: 15px; }
+html[data-size="l"] { font-size: 18px; }
+html[data-size="xl"] { font-size: 21px; }
+html[data-size="s"] body, html[data-size="l"] body, html[data-size="xl"] body,
+html[data-size="s"] .article-body p, html[data-size="l"] .article-body p, html[data-size="xl"] .article-body p,
+html[data-size="s"] .b-entry, html[data-size="l"] .b-entry, html[data-size="xl"] .b-entry { font-size: 1rem; }
+html[data-leading="w"] body, html[data-leading="w"] .article-body p, html[data-leading="w"] .b-entry { line-height: 2.05; }
+
+.b-prefs { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin: 1.6rem 0 0;
+           padding: .6rem .8rem; border: 1px solid var(--hairline); border-radius: var(--radius-md);
+           background: var(--paper-soft); font-size: .84rem; color: var(--ink-secondary); }
+.b-prefs label { display: inline-flex; align-items: center; gap: .3rem; }
+.b-prefs select { font: inherit; font-size: .84rem; padding: .15rem .3rem; background: var(--paper);
+                  color: var(--ink); border: 1px solid var(--hairline); border-radius: var(--radius-sm); }
+.b-prefs button { font: inherit; font-size: .84rem; padding: .2rem .7rem; cursor: pointer;
+                  background: var(--paper); color: var(--ink); border: 1px solid var(--hairline);
+                  border-radius: var(--radius-md); }
+.b-prefs .b-sep { margin-left: auto; color: var(--muted); font-size: .78rem; }
 a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破 375px 窄屏 */
 /* 本站自己的页头：这是独立站，不用主站的家族导航；页脚仍然用家族那份（只出备案号） */
 .b-topbar { position: sticky; top: 0; z-index: 10; background: var(--paper);
@@ -128,6 +164,70 @@ GH_REPO = "https://github.com/Helioswei/HowToLiveBetter-Kit"
 FAVICON = '<link rel="icon" type="image/svg+xml" href="https://assets.aigcwei.cn/favicon.svg">'
 SHARED_CSS = '<link rel="stylesheet" href="https://assets.aigcwei.cn/style.css">'
 
+# 放在 <head> 里的极小脚本（约 200 字节）：把用户存过的阅读偏好先套上，避免先亮后暗闪一下。
+# 全站只有这一处（外加检索页自己的检索脚本）；正文不依赖任何 JS。
+HEAD_PREFS = """<script>
+(function(){try{var p=JSON.parse(localStorage.getItem('hltb.prefs')||'{}'),h=document.documentElement;
+if(p.size)h.setAttribute('data-size',p.size);
+if(p.leading)h.setAttribute('data-leading',p.leading);
+if(p.theme)h.setAttribute('data-theme',p.theme);}catch(e){}})();
+</script>"""
+
+
+
+# 页尾的阅读设置那一行：字号 / 行距 / 主题 + 朗读。
+# 正文不依赖它（没有 JS 时这一行不出现，页面照读）；设置只存在浏览器里。
+BODY_PREFS = """<script>
+(function(){
+  var K='hltb.prefs', h=document.documentElement;
+  function load(){try{return JSON.parse(localStorage.getItem(K)||'{}')||{}}catch(e){return {}}}
+  var p=load();
+  function sel(id,label,opts){var s='<label>'+label+'<select id="'+id+'">';
+    for(var i=0;i<opts.length;i++){s+='<option value="'+opts[i][0]+'">'+opts[i][1]+'</option>';}
+    return s+'</select></label>';}
+  var box=document.createElement('div'); box.className='b-prefs';
+  box.innerHTML='<span>阅读设置</span>'
+    +sel('b-size','字号',[['s','小'],['','标准'],['l','大'],['xl','特大']])
+    +sel('b-leading','行距',[['','标准'],['w','宽']])
+    +sel('b-theme','主题',[['','跟随系统'],['light','浅色'],['dark','深色']])
+    +'<button type="button" id="b-speak">朗读</button>'
+    +'<span class="b-sep" id="b-say">设置只存在你自己的浏览器里</span>';
+  var anchor=document.querySelector('footer.site-footer')||document.getElementById('site-footer')||document.body;
+  anchor.parentNode.insertBefore(box, anchor);
+
+  var size=box.querySelector('#b-size'), lead=box.querySelector('#b-leading'), theme=box.querySelector('#b-theme');
+  var say=box.querySelector('#b-say');
+  size.value=p.size||''; lead.value=p.leading||''; theme.value=p.theme||'';
+  function set(a,v){ if(v) h.setAttribute(a,v); else h.removeAttribute(a); }
+  function apply(){ set('data-size',size.value); set('data-leading',lead.value); set('data-theme',theme.value); }
+  function save(){ p.size=size.value; p.leading=lead.value; p.theme=theme.value;
+    try{ localStorage.setItem(K, JSON.stringify(p)); }catch(e){} apply(); }
+  size.addEventListener('change',save); lead.addEventListener('change',save); theme.addEventListener('change',save);
+  apply();
+
+  var sp=box.querySelector('#b-speak');
+  if(!('speechSynthesis' in window) || !window.SpeechSynthesisUtterance){ sp.style.display='none'; return; }
+  var MAX=2500, speaking=false;
+  sp.addEventListener('click', function(){
+    if(speaking){ window.speechSynthesis.cancel(); speaking=false; sp.textContent='朗读'; return; }
+    var parts=[].slice.call(document.querySelectorAll('.b-human'));   // 节页：读每条的说人话
+    var text=parts.length ? parts.map(function(e){return e.innerText.trim();}).join('\u3002')
+                          : ((document.querySelector('article.article')||{}).innerText||'');
+    text=(text||'').replace(/\s+/g,' ').trim();
+    if(!text){ say.textContent='这一页没有可朗读的文字'; return; }
+    var cut=false;
+    if(text.length>MAX){ text=text.slice(0,MAX); cut=true; }
+    var u=new SpeechSynthesisUtterance(text);
+    u.lang='zh-CN'; u.rate=1; u.pitch=1;
+    u.onend=function(){ speaking=false; sp.textContent='朗读'; say.textContent=cut?'前面太长，只读了前半段':'设置只存在你自己的浏览器里'; };
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    speaking=true; sp.textContent='停止';
+    say.textContent=cut?'内容较长，只读前半段':'正在朗读…';
+  });
+})();
+</script>"""
+
 
 def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
     """一个页面。path 是相对站点根的路径（如 "08/18.html"），用来算相对前缀与 canonical。"""
@@ -157,6 +257,7 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
   <meta name="twitter:card" content="summary">
   {SHARED_CSS}
   <link rel="stylesheet" href="{up}style.css?v={STYLE_VERSION}">
+{HEAD_PREFS}
 {ld_block}</head>
 <body data-site="better">
   <nav class="b-topbar" aria-label="本站导航">
@@ -178,6 +279,7 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
     </div>
   </main>
 
+  {BODY_PREFS}
   <div id="site-footer"></div>
 </body>
 </html>

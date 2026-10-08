@@ -102,10 +102,17 @@ def main():
             if needle not in doc:
                 shell_missing.append("%s 缺 %s" % (rel, label))
 
-        # 3. 零 JS（检索页除外）—— JSON-LD 也是 <script>，但它不是可执行脚本
-        exec_scripts = re.findall(r'<script(?![^>]*type="application/ld\+json")', doc)
-        if exec_scripts and rel != "search.html":
-            no_script_except_search.append("%s（%d 个）" % (rel, len(exec_scripts)))
+        # 3. 脚本只允许两个已知的：阅读设置（每页）+ 检索（检索页）。
+        #    正文不依赖任何 JS —— 关掉 JS 照样读，这条由 tools/test_js_off 之外的手段单独验。
+        scripts = re.findall(r'<script(?![^>]*type="application/ld\+json")([^>]*)>(.*?)</script>', doc, re.S)
+        limit = 3 if rel == "search.html" else 2
+        if len(scripts) > limit:
+            no_script_except_search.append("%s 有 %d 段脚本（上限 %d）" % (rel, len(scripts), limit))
+        for attrs, body in scripts:
+            if "src=" in attrs:
+                no_script_except_search.append("%s 引用了外部脚本：%s" % (rel, attrs.strip()[:60]))
+            elif "hltb.prefs" not in body and "search-index.json" not in body:
+                no_script_except_search.append("%s 有一段不认识的脚本" % rel)
 
         # 4. canonical 唯一且规范
         m = RE_CANON.search(doc)
@@ -272,7 +279,7 @@ def main():
         print("  · %s" % line)
     for line in warnings:
         print("  ⚠️ %s" % line)
-    for label, items in (("缺骨架", shell_missing), ("出现了 script（应零 JS）", no_script_except_search),
+    for label, items in (("缺骨架", shell_missing), ("脚本数量/来源超出白名单", no_script_except_search),
                          ("JSON-LD 有问题", ld_bad), ("缺免责声明", disclaimer_missing),
                          ("内部链接指向不存在的文件", missing_targets[:20]),
                          ("注入后缺备案号", icp_missing), ("注入后仍有占位符", placeholder_left),
@@ -285,7 +292,7 @@ def main():
     if errors:
         print("结论：站点不合格，先修再上线")
         sys.exit(1)
-    print("结论：结构 / SEO / 零 JS / 链接 / 保真 / 索引 / sitemap 全部合格"
+    print("结论：结构 / SEO / 脚本受控（正文不依赖 JS）/ 链接 / 保真 / 索引 / sitemap 全部合格"
           + ("，备案号已注入" if a.injected else ""))
 
 
