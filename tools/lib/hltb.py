@@ -34,6 +34,8 @@ RE_README_ROW = re.compile(r"^\|\s*(.+?)\s*\|\s*\[(\d+)\.\s*([^\]]+)\]\([^)]*\)\
 # 正文里的互相指路：「见第 8 节第 17 条」「见本节第 3 条」
 RE_XREF_FAR = re.compile(r"见第\s*(\d+)\s*节第\s*(\d+)\s*条")
 RE_XREF_NEAR = re.compile(r"见本节第\s*(\d+)\s*条")
+# 同节条号：书里写作「（第 N 条）」，节首导览里就是它的目录写法
+RE_SAME_REF = re.compile(r"（第\s*(\d+)\s*条）")
 # 上游每节开头的返回链接，我们自己的壳负责导航
 RE_BACK_LINK = re.compile(r"^\[← 回总目录\]\([^)]*\)\s*\n")
 RE_H2 = re.compile(r"^##\s+(.+)$", re.M)
@@ -195,14 +197,22 @@ def stats(book):
 
 # ------------------------------------------------------------------ 渲染辅助
 
-def inline(text, sec, entry_titles):
-    """把正文里的 <url>、[文字](链接)、「见第 X 节第 Y 条」变成真 HTML 链接。
+def inline(text, sec, entry_titles, on_section=True):
+    """把正文里的 <url>、[文字](链接)、**加粗**、「见第 X 节第 Y 条」、「（第 N 条）」变成真 HTML。
 
     entry_titles: {(节, 条): 标题}，用来给互相指路加 title 提示。
+    on_section: 当前页是不是节页。同节条号在节页上指向本页锚点（#eN），
+                在条目页上要指回节页（index.html#eN），否则点了没反应。
     """
     s = html.escape(text, quote=False)
     s = re.sub(r"&lt;(https?://[^&\s]+?)&gt;",
                r'<a href="\1" target="_blank" rel="noopener nofollow">\1</a>', s)
+
+    # 书里的 markdown 加粗（92 处）。三个细节：转义星号（HLA-B\*5801）、跨段落的加粗、
+    # 以及源里偶尔落单的 ** —— 都不能留在页面上当字面星号。
+    s = s.replace("\\*", "*")
+    s = re.sub(r"\*\*(.{1,400}?)\*\*", r"<strong>\1</strong>", s, flags=re.S)
+    s = s.replace("**", "")
 
     def far(m):
         s_num, e_num = int(m.group(1)), int(m.group(2))
@@ -217,9 +227,20 @@ def inline(text, sec, entry_titles):
         tip = ' title="%s"' % html.escape(title) if title else ""
         return '<a class="xref" href="#e%d"%s>%s</a>' % (e_num, tip, m.group(0))
 
+    def same(m):
+        """同节条号，书里写作「（第 N 条）」—— 节首导览里就是它的目录写法，共 421 处。
+        目标条目确实存在时才变成链接，否则原样留着（不去猜）。"""
+        e_num = int(m.group(1))
+        title = entry_titles.get((sec, e_num)) if sec else None
+        if not title:
+            return m.group(0)
+        href = ("#e%d" % e_num) if on_section else ("index.html#e%d" % e_num)
+        return '<a class="b-ref" href="%s" title="%s">%s</a>' % (href, html.escape(title), m.group(0))
+
     # 顺序要紧：先处理「本节」，再处理跨节；m.group(0) 已经是转义过的文本，不能再转义一次
     s = RE_XREF_NEAR.sub(near, s)
     s = RE_XREF_FAR.sub(far, s)
+    s = RE_SAME_REF.sub(same, s)
     s = re.sub(r"\[([^\]]{1,40})\]\((https?://[^)\s]+)\)",
                r'<a href="\2" target="_blank" rel="noopener nofollow">\1</a>', s)
     return s

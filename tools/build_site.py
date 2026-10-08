@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "5"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "7"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -45,12 +45,18 @@ TOKENS = """:root {
 
 STYLE = TOKENS + """
 /* 这一份是 better 站自己的样式，叠在共享的 assets.aigcwei.cn/style.css 之上 */
-/* ---- 深色主题：默认跟随系统（不需要 JS），用户选过就用 data-theme 覆盖 ---- */
-@media (prefers-color-scheme: dark) and (not (prefers-color-scheme: light)) {
-  :root { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
+/* ---- 深色主题：默认跟随系统（不需要 JS），用户选过就用 data-theme 覆盖 ----
+   选择器写成 html:not([data-theme="light"]) 是为了让"系统深色 + 用户显式选浅色"也正确。 */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
           --hairline: #2e3238; --hairline-soft: #262a30;
           --ink: #e9e5df; --ink-secondary: #ada79e; --muted: #837d74;
           --accent: #cf6a4f; --accent-strong: #e08567; --accent-soft: #2a1f1a; }
+  html:not([data-theme="light"]) .container, html:not([data-theme="light"]) .article,
+  html:not([data-theme="light"]) .article-body, html:not([data-theme="light"]) .article-header,
+  html:not([data-theme="light"]) .breadcrumb { background: transparent; color: var(--ink); }
+  html:not([data-theme="light"]) .article-body a { color: var(--accent-strong); }
+  html:not([data-theme="light"]) .b-intro, html:not([data-theme="light"]) .b-lead { background: var(--paper-soft); }
 }
 html[data-theme="dark"] { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
           --hairline: #2e3238; --hairline-soft: #262a30;
@@ -61,6 +67,8 @@ html[data-theme="dark"] .container, html[data-theme="dark"] .article,
 html[data-theme="dark"] .article-body, html[data-theme="dark"] .article-header,
 html[data-theme="dark"] .breadcrumb { background: transparent; color: var(--ink); }
 html[data-theme="dark"] .article-body a { color: var(--accent-strong); }
+/* 这两个块自己有色底，别被上面那条"透明"规则抹掉 */
+html[data-theme="dark"] .b-intro, html[data-theme="dark"] .b-lead { background: var(--paper-soft); }
 
 /* ---- 字号 / 行距档位（阅读设置那一行控制；默认不设属性 = 标准）---- */
 html[data-size="s"] { font-size: 15px; }
@@ -152,6 +160,50 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
           border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper); }
 .b-bar .b-count { font-weight: 600; }
 .b-bar .b-hint { color: var(--muted); }
+/* ---- 排版美化：阅读感 ---- */
+.article-body { max-width: 44rem; }
+.article-body p { line-height: 1.95; margin: .78rem 0; }
+.article-header h1 { font-family: var(--font-serif); letter-spacing: .01em; }
+.article-meta { color: var(--muted); font-size: .84rem; }
+/* 说人话 = 整条的结论，做成引文块 */
+.b-lead { background: var(--paper-soft); border-left: 3px solid var(--accent);
+          border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: .8rem 1rem; margin: .9rem 0 1.1rem; }
+.b-lead p { margin: 0; font-weight: 600; font-size: 1.03rem; line-height: 1.9; }
+/* 字段：标签像小标题 */
+.b-fl { margin: 1.1rem 0; }
+.b-fl > b { display: block; font-size: .78rem; letter-spacing: .06em; color: var(--muted);
+            font-weight: 600; margin-bottom: .2rem; }
+.b-fl p { margin: .3rem 0; }
+/* 折叠区看起来像一行按钮，不是一行灰字 */
+details.b-more { margin: 1.1rem 0 .3rem; }
+details.b-more > summary { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer;
+   padding: .25rem .8rem; font-size: .85rem; color: var(--ink-secondary);
+   border: 1px solid var(--hairline); border-radius: 999px; background: var(--paper-soft); }
+details.b-more > summary:hover { border-color: var(--accent); color: var(--accent-strong); }
+details.b-more[open] > summary { margin-bottom: .6rem; }
+/* 条号引用做成小药丸（书里 421 处「（第 N 条）」） */
+.b-ref { display: inline-block; padding: 0 .38rem; border-radius: 999px; background: var(--accent-soft);
+         color: var(--accent-strong); text-decoration: none; font-size: .9em; white-space: nowrap; }
+.b-ref:hover { background: var(--accent); color: #fff; }
+.b-refs-inline { line-height: 2.2; }
+/* 节页导览块：书里"本节条目按主题分成下面几块，括号里是条号"那一段 */
+.b-intro { background: var(--paper-soft); border: 1px solid var(--hairline);
+           border-radius: var(--radius-lg); padding: .3rem 1.1rem .8rem; margin: 1rem 0 1.4rem;
+           max-width: none; }
+.b-intro p { line-height: 2.0; }
+.b-intro strong { color: var(--accent-strong); }
+/* 节页条目卡：留白更松、极高那几条左边补一道强调条、悬停有反馈 */
+.b-entry { padding: 1.15rem .9rem; margin: 0 -.9rem; border-radius: var(--radius-md); }
+.b-entry:hover { background: var(--paper-soft); }
+.b-entry.is-top { box-shadow: inset 3px 0 0 var(--accent); }
+.b-entry .b-num { color: var(--muted); text-decoration: none; }
+.b-entry .b-human { font-size: 1.01rem; line-height: 1.9; }
+.b-badges { gap: .3rem; margin: .35rem 0 .6rem; }
+.b-badge { background: transparent; border-color: var(--hairline-soft); }
+.b-secs a { border-radius: var(--radius-sm); }
+.b-tl-step { margin-bottom: 2rem; }
+.b-tl-step li { line-height: 1.9; }
+
 /* ---- 场景时间轴 ---- */
 .b-tl { margin: 1.4rem 0 0; }
 .b-tl-step { position: relative; padding: 0 0 0 1.5rem; border-left: 2px solid var(--hairline);
@@ -324,10 +376,11 @@ def badge_html(e):
     return '<div class="b-badges">%s</div>' % "".join(bits)
 
 
-def paras(text, sec, titles):
+def paras(text, sec, titles, on_section=True):
     if not text:
         return ""
-    return "".join("<p>%s</p>" % hltb.inline(p, sec, titles) for p in hltb.split_paras(text))
+    return "".join("<p>%s</p>" % hltb.inline(p, sec, titles, on_section)
+                   for p in hltb.split_paras(text))
 
 
 def sync_line(src):
@@ -344,29 +397,31 @@ DISCLAIMER_NOTE = '<p class="b-note">%s</p>' % DISCLAIMER
 
 def entry_body(b, e, titles):
     f = e["fields"]
-    extra = ""
-    for label in ("收益", "来源", "备注"):
+    sec = e["sec"]
+    hidden = ""   # 来源 / 备注 收进折叠区（收益是证据，留在正文里）
+    for label in ("来源", "备注"):
         if f.get(label):
-            extra += '<div class="b-fl"><b>%s</b>%s</div>' % (label, paras(f[label], e["sec"], titles))
+            hidden += '<div class="b-fl"><b>%s</b>%s</div>' % (label, paras(f[label], sec, titles, False))
     if e["xrefs"]:
         refs = []
         for s, n in e["xrefs"]:
             t = titles.get((s, n))
-            href = "%02d.html" % n if s == e["sec"] else "../%02d/%02d.html" % (s, n)
-            refs.append('<a class="b-xref" href="%s">第 %d 节第 %d 条%s</a>'
-                        % (href, s, n, ("（%s）" % html.escape(t)) if t else ""))
-        extra += '<div class="b-fl"><b>这一条还指向</b><p>%s</p></div>' % "；".join(refs)
-    return f"""      <nav class="breadcrumb"><a href="../">目录</a> <span class="sep">›</span> <a href="./">第 {e['sec']} 节 {html.escape(e['sec_title'])}</a> <span class="sep">›</span> <span class="cur">{e['num']}</span></nav>
-      <article class="article">
+            href = "%02d.html" % n if s == sec else "../%02d/%02d.html" % (s, n)
+            refs.append('<a class="b-ref" href="%s" title="%s">第 %d 节第 %d 条</a>'
+                        % (href, html.escape(t or ""), s, n))
+        hidden += '<div class="b-fl"><b>这一条还指向</b><p class="b-refs-inline">%s</p></div>' % " ".join(refs)
+    return f"""      <nav class="breadcrumb"><a href="../">目录</a> <span class="sep">›</span> <a href="./">第 {sec} 节 {html.escape(e['sec_title'])}</a> <span class="sep">›</span> <span class="cur">{e['num']}</span></nav>
+      <article class="article b-entry-page">
         <header class="article-header">
           <h1>{html.escape(e['title'])}</h1>
-          <p class="article-meta"><span>第 {e['sec']} 节第 {e['num']} 条</span></p>
+          <p class="article-meta"><span>第 {sec} 节第 {e['num']} 条</span></p>
         </header>
         {badge_html(e)}
         <div class="article-body">
-          {paras(f.get('说人话'), e['sec'], titles) if f.get('说人话') else ''}
-          {('<div class="b-fl"><b>成本</b>%s</div>' % paras(f['成本'], e['sec'], titles)) if f.get('成本') else ''}
-          {extra}
+          {('<div class="b-lead">%s</div>' % paras(f['说人话'], sec, titles, False)) if f.get('说人话') else ''}
+          {('<div class="b-fl"><b>成本</b>%s</div>' % paras(f['成本'], sec, titles, False)) if f.get('成本') else ''}
+          {('<div class="b-fl"><b>收益</b>%s</div>' % paras(f['收益'], sec, titles, False)) if f.get('收益') else ''}
+          {('<details class="b-more"><summary>来源与备注</summary>%s</details>' % hidden) if hidden else ''}
         </div>
       </article>
       <p class="b-note">{DISCLAIMER}</p>
@@ -382,12 +437,13 @@ def section_body(b, sec, titles):
         for label in ("收益", "来源", "备注"):
             if f.get(label):
                 extra += '<div class="b-fl"><b>%s</b>%s</div>' % (label, paras(f[label], sec["num"], titles))
-        items.append(f"""      <section class="b-entry" id="e{e['num']}">
-        <h3><a href="#e{e['num']}" style="color:var(--muted);text-decoration:none">{e['num']}.</a> {html.escape(e['title'])}</h3>
+        top = ' is-top' if e.get("ratio") == "极高" else ''
+        items.append(f"""      <section class="b-entry{top}" id="e{e['num']}">
+        <h3><a class="b-num" href="#e{e['num']}" title="锚点：本页第 {e['num']} 条">{e['num']}.</a> {html.escape(e['title'])}</h3>
         {badge_html(e)}
         {('<p class="b-human">%s</p>' % hltb.inline(f['说人话'], sec['num'], titles)) if f.get('说人话') else ''}
         {('<p class="b-cost">成本：%s</p>' % hltb.inline(f['成本'], sec['num'], titles)) if f.get('成本') else ''}
-        <details><summary>收益 / 来源 / 备注</summary>{extra}</details>
+        <details class="b-more"><summary>收益 / 来源 / 备注</summary>{extra}</details>
         <p class="b-perma"><a href="{e['num']:02d}.html">单独打开这条 →</a></p>
       </section>""")
     prev_l = next((s for s in b["sections"] if s["num"] == sec["num"] - 1), None)
@@ -403,7 +459,7 @@ def section_body(b, sec, titles):
         <h1>{sec['num']}. {html.escape(sec['title'])}</h1>
         {('<p class="b-q">这一节回答：%s</p>' % html.escape(sec['question'])) if sec['question'] else ''}
       </div>
-      <div class="article-body">
+      <div class="b-intro article-body">
         {paras(sec['intro'], sec['num'], titles)}
       </div>
       <p class="b-stat">{len(sec['entries'])} 条，按性价比从高到低　·　{sync_line(b['source'])}</p>

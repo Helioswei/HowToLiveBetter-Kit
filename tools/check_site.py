@@ -31,8 +31,10 @@ RE_CANON = re.compile(r'<link rel="canonical" href="([^"]+)">')
 
 
 def norm(s):
-    """归一化：正文里的 <url> 会被渲染成链接（尖括号去掉），所以比对时也要去掉尖括号。"""
+    """归一化：比对前把"渲染会去掉的标记"去掉 ——
+    <url> 的尖括号、markdown 链接语法、**加粗**（渲染成 <strong>）、以及 \\* 这类转义反斜杠。"""
     s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s or "")
+    s = (s or "").replace("\\*", "*").replace("**", "")
     return re.sub(r"\s+", "", s.replace("<", "").replace(">", ""))
 
 
