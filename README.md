@@ -18,8 +18,9 @@
 |:---|:---|
 | MCP 服务（四个工具） | ✅ 可用，19 个测试全绿 |
 | npm 包 `howtolivebetter-mcp` | ⏳ 待发布（先按下面「从源码跑」用） |
-| 在线阅读版 `better.aigcwei.cn` | ⏳ 部署中 |
+| 在线阅读版 `better.aigcwei.cn` | 🔶 710 页产物已就绪并在 CI 里自检通过，等 Makers 建项目 + 绑子域 |
 | 每日自动同步上游 | ✅ 已配（`.github/workflows/sync.yml`） |
+| 站点每日自动重打包 | ✅ 已配（`.github/workflows/site.yml`） |
 
 ---
 
