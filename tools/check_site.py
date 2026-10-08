@@ -233,6 +233,40 @@ def main():
             sizes = {f: os.path.getsize(os.path.join(root, f)) // 1024 for f in sorted(expect_dl)}
             info.append("电子版镜像已就位：%s" % sizes)
 
+    # 6c. 页面内联 JS 的语法检查（用 node，没有就跳过并说明）
+    #     为什么要这道：我写检索页时踩过 —— Python 字符串把 JS 里的 \n 提前解析成真换行，
+    #     生成出一段语法错误的 JS；零 JS 的那部分页面永远不会暴露这种错，所以必须机器查。
+    import shutil
+    import subprocess
+    import tempfile
+    inline = []
+    for rel in pages:
+        with open(os.path.join(root, rel), encoding="utf-8") as fh:
+            doc = fh.read()
+        for body in re.findall(r"<script(?![^>]*type=\"application/ld\+json\")[^>]*>(.*?)</script>", doc, re.S):
+            if body.strip():
+                inline.append((rel, body))
+    if inline:
+        node = shutil.which("node")
+        if not node:
+            warnings.append("页面里有 %d 段内联 JS，但本机没有 node，跳过语法检查" % len(inline))
+        else:
+            bad = []
+            for rel, body in inline:
+                with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+                    fh.write(body)
+                    tmp = fh.name
+                p = subprocess.run([node, "--check", tmp], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                if p.returncode != 0:
+                    out = p.stdout.decode("utf-8", "replace")
+                    first = next((l for l in out.splitlines() if "Error" in l), (out.splitlines() or ["未知"])[0])
+                    bad.append("%s：%s" % (rel, first.strip()[:140]))
+                os.unlink(tmp)
+            if bad:
+                errors.append("内联 JS 有语法错误：%s" % bad)
+            else:
+                info.append("内联 JS 语法检查通过（%d 段，node --check）" % len(inline))
+
     # ---------------- 报告
     for line in info:
         print("  · %s" % line)

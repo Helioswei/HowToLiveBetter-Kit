@@ -98,6 +98,24 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
 .b-filters legend { font-size: .78rem; color: var(--muted); padding: 0 .3rem; }
 .b-filters label { margin-right: .6rem; white-space: nowrap; }
 .b-hit { border-top: 1px solid var(--hairline-soft); padding: .8rem 0; }
+.b-hit-head { display: flex; gap: .6rem; align-items: flex-start; }
+.b-hit-head h3 { flex: 1; margin: 0 0 .3rem; }
+.b-pick { display: flex; align-items: center; gap: .35rem; font-size: .8rem; color: var(--muted);
+          white-space: nowrap; cursor: pointer; padding-top: .15rem; }
+.b-pick input { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); }
+.b-hit.picked { background: var(--accent-soft); }
+.b-presets { display: flex; gap: .5rem; flex-wrap: wrap; margin: .6rem 0 0; }
+.b-presets button { font: inherit; font-size: .85rem; cursor: pointer; padding: .3rem .7rem;
+          border: 1px solid var(--hairline); border-radius: 999px; background: var(--paper-soft);
+          color: var(--ink); }
+.b-presets button:hover { border-color: var(--accent); color: var(--accent-strong); }
+.b-bar { position: sticky; bottom: 0; display: flex; gap: .7rem; align-items: center; flex-wrap: wrap;
+          margin-top: 1.2rem; padding: .7rem .9rem; background: var(--paper-deep);
+          border-top: 2px solid var(--accent); font-size: .88rem; }
+.b-bar button { font: inherit; font-size: .85rem; cursor: pointer; padding: .3rem .8rem;
+          border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper); }
+.b-bar .b-count { font-weight: 600; }
+.b-bar .b-hint { color: var(--muted); }
 .b-hit h3 { font-size: 1rem; margin: 0 0 .3rem; }
 @media (max-width: 520px) {
   .b-secs a { grid-template-columns: 2.2rem 1fr; grid-template-areas: "n t" ". c" ". q"; }
@@ -272,6 +290,7 @@ def section_body(b, sec, titles):
 
 def index_body(b):
     total = len(b["entries"])
+    top = sum(1 for e in b["entries"] if e.get("ratio") == "极高")
     rows = "".join(
         '<li><a href="%02d/"><span class="b-sn">%02d</span><span class="b-st">%s</span>'
         '<span class="b-sc">%d 条</span><span class="b-sq">%s</span></a></li>'
@@ -283,7 +302,7 @@ def index_body(b):
            每条写明花掉什么、换回什么、证据有多硬，来源只引期刊论文与官方文件。</p>
         <p class="b-stat">本站是<strong>原文转载</strong>：正文一个字未改，只重排版式并加了导航、检索与单条链接。
            共 {len(b['sections'])} 节 {total} 条　·　{sync_line(b['source'])}</p>
-        <p class="b-stat"><a href="search.html">全文检索</a>　·　<a href="download.html">下载电子版</a>　·　<a href="about.html">关于与许可</a></p>
+        <p class="b-stat"><a href="search.html#ratio=%E6%9E%81%E9%AB%98">我该做哪几条（{top} 条零成本高收益）</a>　·　<a href="search.html">检索全部 {total} 条</a>　·　<a href="download.html">下载电子版</a>　·　<a href="about.html">关于与许可</a></p>
       </div>
       <ol class="b-secs">{rows}</ol>
       <p class="b-note">{DISCLAIMER}</p>"""
@@ -340,10 +359,25 @@ def download_body(b):
       </div>"""
 
 
-def search_body():
-    return """      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">检索</span></nav>
-      <div class="b-hero"><h1>全文检索</h1>
-        <p class="b-stat">按关键词、成本、证据等级、口径筛选这 672 条。<strong>没有 JS 也能读全书</strong> —— 这一页只是方便检索，正文在目录里。</p></div>
+def search_body(cfg):
+    """检索 + 我的清单。
+
+    两条模式：
+      探索 —— 筛选 + 打勾（勾选存在本地，不上传）
+      清单 —— 打开带 #p=01.03,05.12 的链接时直接进这个模式，按书的顺序列出被选中的条目
+    分享链接零后端：勾选状态就编码在 URL 片段里。
+    """
+    body = r"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">检索与我的清单</span></nav>
+      <div class="b-hero"><h1>检索与我的清单</h1>
+        <p class="b-stat">按关键词、成本、证据等级、口径筛这 __TOTAL__ 条；看中的打勾，就成了「我的清单」——
+           勾选只存在你自己的浏览器里，不会上传；要发给别人就复制分享链接。</p>
+        <div class="b-presets">
+          <button type="button" data-preset="top">性价比「极高」（__TOP__ 条）</button>
+          <button type="button" data-preset="a">只看证据 A 级</button>
+          <button type="button" data-preset="clear">清空条件</button>
+          <button type="button" data-preset="mine">只看我的清单</button>
+        </div>
+      </div>
       <form class="b-filters" id="f">
         <fieldset><legend>关键词</legend><input type="search" id="q" name="q" placeholder="戒烟 / 担保 / 产假" style="width:12rem"></fieldset>
         <fieldset><legend>钱</legend><label><input type="checkbox" name="money" value="0">不花</label><label><input type="checkbox" name="money" value="少">少</label><label><input type="checkbox" name="money" value="多">多</label></fieldset>
@@ -356,48 +390,181 @@ def search_body():
       </form>
       <p class="b-stat" id="count">正在载入索引…</p>
       <div id="hits"></div>
-      <p class="b-note">关键词是字面匹配，不是语义检索。不同口径之间不做比较（书里的规定）。</p>
+      <div class="b-bar" id="bar">
+        <span class="b-count" id="mycount">已选 0 条</span>
+        <button type="button" id="share">复制分享链接</button>
+        <button type="button" id="copy">复制清单文本</button>
+        <button type="button" id="reset">清空我的清单</button>
+        <span class="b-hint" id="say"></span>
+      </div>
+      <p class="b-note">关键词是字面匹配，不是语义检索。不同口径之间不做比较（书里的规定）；
+         勾选只存在你自己的浏览器里，没有账号、没有服务器。</p>
       <script>
       (function () {
-        var DATA = null, form = document.getElementById('f'), hits = document.getElementById('hits'), cnt = document.getElementById('count');
-        function load() {
-          fetch('search-index.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
-            DATA = d; cnt.textContent = '索引就绪：共 ' + d.length + ' 条'; render();
-          }).catch(function (e) { cnt.textContent = '索引载入失败（' + e.message + '），可以直接看目录。'; });
+        var CFG = __CFG__;
+        var DATA = null, mode = 'explore', mine = {}, byKey = {};
+        var form = document.getElementById('f'), hits = document.getElementById('hits');
+        var cnt = document.getElementById('count'), mycount = document.getElementById('mycount'), say = document.getElementById('say');
+
+        function loadMine() {
+          try { mine = JSON.parse(localStorage.getItem('hltb.mine') || '{}') || {}; } catch (e) { mine = {}; }
+        }
+        function saveMine() {
+          try { localStorage.setItem('hltb.mine', JSON.stringify(mine)); } catch (e) {}
+        }
+        function keyOf(e) { return e.s + '.' + e.n; }
+        function esc(s) {
+          return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+          });
         }
         function picked(name) {
           return Array.prototype.slice.call(form.querySelectorAll('input[name=' + name + ']:checked')).map(function (i) { return i.value; });
         }
+        function badges(e) {
+          return '<div class="b-badges"><span class="b-badge top">性价比 ' + e.r + '</span>' +
+                 '<span class="b-badge">收益 ' + e.g.b + '</span>' +
+                 '<span class="b-badge lv">证据 ' + e.v + '</span>' +
+                 '<span class="b-badge ku">' + e.k + '</span></div>';
+        }
+        function card(e) {
+          var k = keyOf(e), on = !!mine[k];
+          return '<div class="b-hit' + (on ? ' picked' : '') + '" data-k="' + k + '">' +
+            '<div class="b-hit-head"><h3><a href="' + e.u + '">' + esc(e.t) + '</a></h3>' +
+            '<label class="b-pick"><input type="checkbox" data-pick="' + k + '"' + (on ? ' checked' : '') + '>要做</label></div>' +
+            badges(e) + '<p>' + esc(e.h) + '</p></div>';
+        }
+        function matches(e, q, f) {
+          if (f.evidence.length && f.evidence.indexOf(e.v) < 0) return false;
+          if (f.caliber.length && f.caliber.indexOf(e.k) < 0) return false;
+          if (f.ratio.length && f.ratio.indexOf(e.r) < 0) return false;
+          if (f.benefit.length && f.benefit.indexOf(e.g.b) < 0) return false;
+          if (f.money.length && f.money.indexOf(e.g.m) < 0) return false;
+          if (f.time.length && f.time.indexOf(e.g.t) < 0) return false;
+          if (f.will.length && f.will.indexOf(e.g.w) < 0) return false;
+          if (q && (e.t + e.h).toLowerCase().indexOf(q) < 0) return false;
+          return true;
+        }
         function render() {
           if (!DATA) return;
-          var q = (document.getElementById('q').value || '').replace(/\\s+/g, '').toLowerCase();
-          var f = { money: picked('money'), time: picked('time'), will: picked('will'), benefit: picked('benefit'), evidence: picked('evidence'), caliber: picked('caliber'), ratio: picked('ratio') };
-          var out = DATA.filter(function (e) {
-            if (f.evidence.length && f.evidence.indexOf(e.v) < 0) return false;
-            if (f.caliber.length && f.caliber.indexOf(e.k) < 0) return false;
-            if (f.ratio.length && f.ratio.indexOf(e.r) < 0) return false;
-            if (f.benefit.length && f.benefit.indexOf(e.g.b) < 0) return false;
-            if (f.money.length && f.money.indexOf(e.g.m) < 0) return false;
-            if (f.time.length && f.time.indexOf(e.g.t) < 0) return false;
-            if (f.will.length && f.will.indexOf(e.g.w) < 0) return false;
-            if (q && (e.t + e.h).toLowerCase().indexOf(q) < 0) return false;
-            return true;
-          });
-          cnt.textContent = '命中 ' + out.length + ' 条';
-          hits.innerHTML = out.slice(0, 60).map(function (e) {
-            return '<div class="b-hit"><h3><a href="' + e.u + '">' + e.t + '</a></h3>' +
-              '<div class="b-badges"><span class="b-badge top">性价比 ' + e.r + '</span>' +
-              '<span class="b-badge">收益 ' + e.g.b + '</span><span class="b-badge lv">证据 ' + e.v + '</span>' +
-              '<span class="b-badge ku">' + e.k + '</span></div>' +
-              '<p>' + e.h + '</p></div>';
-          }).join('') + (out.length > 60 ? '<p class="b-stat">只显示前 60 条，请加条件缩小范围。</p>' : '');
+          var q = (document.getElementById('q').value || '').replace(/\s+/g, '').toLowerCase();
+          var f = { money: picked('money'), time: picked('time'), will: picked('will'), benefit: picked('benefit'),
+                    evidence: picked('evidence'), caliber: picked('caliber'), ratio: picked('ratio') };
+          var out;
+          if (mode === 'list') {
+            out = DATA.filter(function (e) { return mine[keyOf(e)]; });
+            cnt.textContent = '我的清单：' + out.length + ' 条（按书的顺序）';
+          } else {
+            out = DATA.filter(function (e) { return matches(e, q, f); });
+            cnt.textContent = '命中 ' + out.length + ' 条' + (out.length > 60 ? '，只显示前 60 条（请加条件缩小范围）' : '');
+            out = out.slice(0, 60);
+          }
+          hits.innerHTML = out.map(card).join('') ||
+            '<p class="b-stat">' + (mode === 'list' ? '还没选任何条目。在检索里给想做的打勾，或者把别人发你的分享链接打开。' : '没有命中的条目，换个条件试试。') + '</p>';
+          var n = Object.keys(mine).length;
+          mycount.textContent = '已选 ' + n + ' 条';
         }
-        form.addEventListener('change', render);
+        function setFilter(name, values) {
+          form.querySelectorAll('input[name=' + name + ']').forEach(function (i) {
+            i.checked = values.indexOf(i.value) >= 0;
+          });
+        }
+        function setHash(keys) {
+          var h = keys.length ? '#p=' + keys.slice().sort().join(',') : '';
+          if (location.hash !== h) history.replaceState(null, '', location.pathname + location.search + h);
+        }
+        function tell(msg) { say.textContent = msg; }
+
+        document.addEventListener('change', function (ev) {
+          var t = ev.target;
+          if (t && t.getAttribute && t.getAttribute('data-pick')) {
+            var k = t.getAttribute('data-pick');
+            if (t.checked) mine[k] = 1; else delete mine[k];
+            saveMine();
+            var box = t.closest('.b-hit');
+            if (box) box.classList[ t.checked ? 'add' : 'remove' ]('picked');
+            var n = Object.keys(mine).length;
+            mycount.textContent = '已选 ' + n + ' 条';
+            tell('');
+          } else if (t && t.closest && t.closest('#f')) {
+            render();
+          }
+        });
         document.getElementById('q').addEventListener('input', render);
-        form.addEventListener('submit', function (e) { e.preventDefault(); });
-        load();
+
+        document.querySelector('.b-presets').addEventListener('click', function (ev) {
+          var btn = ev.target.closest('button[data-preset]');
+          if (!btn) return;
+          var kind = btn.getAttribute('data-preset');
+          if (kind === 'mine') {
+            mode = 'list'; return render();
+          }
+          mode = 'explore';
+          if (kind === 'top') { setFilter('ratio', ['极高']); setFilter('evidence', []); setFilter('caliber', []); setFilter('money', []); setFilter('time', []); setFilter('will', []); setFilter('benefit', []); }
+          else if (kind === 'a') { setFilter('evidence', ['A']); setFilter('ratio', []); }
+          else if (kind === 'clear') {
+            ['money', 'time', 'will', 'benefit', 'evidence', 'caliber', 'ratio'].forEach(function (k) { setFilter(k, []); });
+            document.getElementById('q').value = '';
+          }
+          render();
+        });
+
+        function copy(text, ok) {
+          var ta = document.createElement('textarea');
+          ta.readOnly = true;
+          ta.style.cssText = 'width:100%;box-sizing:border-box;margin:.6rem 0 0;padding:.45rem;font:inherit;font-size:.8rem;border:1px solid var(--hairline);border-radius:6px;background:var(--paper)';
+          ta.value = text;
+          var bar = document.getElementById('bar');
+          bar.parentNode.insertBefore(ta, bar);
+          ta.focus(); ta.select();
+          var done = false;
+          try { done = document.execCommand('copy'); } catch (e) {}
+          if (!done && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { done = true; tell(ok); }, function () { tell(hint()); });
+          }
+          if (done) { tell(ok); ta.remove(); } else tell(hint());
+          function hint() { return '自动复制没成功：下面框里已经选中，按 Ctrl/Cmd + C 即可'; }
+        }
+        document.getElementById('share').addEventListener('click', function () {
+          var keys = Object.keys(mine);
+          if (!keys.length) { tell('还没选任何条目'); return; }
+          setHash(keys);
+          copy(location.href, '分享链接已复制（' + keys.length + ' 条）');
+        });
+        document.getElementById('copy').addEventListener('click', function () {
+          var keys = Object.keys(mine);
+          if (!keys.length) { tell('还没选任何条目'); return; }
+          var lines = DATA.filter(function (e) { return mine[keyOf(e)]; }).map(function (e) {
+            return '第 ' + e.s + ' 节第 ' + e.n + ' 条 ' + e.t + '\n  ' + CFG.base + '/' + e.u;
+          });
+          copy('我的清单（来自《高性价比人生指南》）\n\n' + lines.join('\n'), '清单文本已复制（' + keys.length + ' 条）');
+        });
+        document.getElementById('reset').addEventListener('click', function () {
+          mine = {}; saveMine(); setHash([]); mode = 'explore'; render(); tell('已清空');
+        });
+
+        function fromHash() {
+          var m = /#p=([0-9.,]*)/.exec(location.hash);
+          if (!m) return false;
+          var keys = m[1].split(',').filter(Boolean);
+          if (!keys.length) return false;
+          keys.forEach(function (k) { mine[k] = 1; });
+          saveMine();
+          mode = 'list';
+          return true;
+        }
+        loadMine();
+        fetch('search-index.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
+          DATA = d; cnt.textContent = '索引就绪：共 ' + d.length + ' 条';
+          fromHash(); render();
+        }).catch(function (e) {
+          cnt.textContent = '索引载入失败（' + e.message + '），可以直接看目录，正文不需要 JS。';
+        });
       })();
-      </script>""" + DISCLAIMER_NOTE
+      </script>"""
+    body = body.replace("__TOTAL__", str(cfg["total"])).replace("__TOP__", str(cfg["top"]))
+    body = body.replace("__CFG__", json.dumps({"base": cfg["base"]}, ensure_ascii=False))
+    return body + DISCLAIMER_NOTE
 
 
 # ---------------------------------------------------------------- 主流程
@@ -457,6 +624,8 @@ def main():
             fh.write(text)
         pages.append((rel, title, desc, pri))
 
+    top_count = sum(1 for e in entries if e["ratio"] == "极高")
+
     # 首页
     write("index.html", page("%s · 按性价比排序的 %d 条建议" % (hltb.TITLE, len(entries)),
                              "672 条按性价比排序的循证建议，每条写明成本、收益、证据等级和原始出处。国内可访问的在线阅读版，每条一个链接。",
@@ -514,14 +683,15 @@ def main():
           "下载", "电子版下载", 0.5)
     write("search.html", page("全文检索 - %s" % hltb.TITLE,
                               "按关键词、成本、证据等级、口径筛选 672 条建议。",
-                              search_body(), base, "search.html",
+                              search_body({"total": len(entries), "top": top_count, "base": base}),
+                              base, "search.html",
                               ld={"@context": "https://schema.org", "@type": "WebPage",
                                   "name": "全文检索", "inLanguage": "zh-CN", "url": base + "/search.html",
                                   "potentialAction": {"@type": "SearchAction",
                                                       "target": "%s/search.html?q={q}" % base,
                                                       "query-input": "required name=q"}},
                               depth=0),
-          "全文检索", "检索 672 条", 0.6)
+          "检索与我的清单", "筛选 672 条、勾出我的清单、复制分享链接", 0.6)
 
     # 检索索引（只在这一页按需加载）
     idx = [{"s": e["sec"], "n": e["num"], "t": e["title"], "h": (e["fields"].get("说人话") or "")[:160],
