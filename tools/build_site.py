@@ -5,9 +5,10 @@
     python3 tools/build_site.py
     python3 tools/build_site.py --base https://better.aigcwei.cn --out build/site
 
-产出的是**模板版**：页面上只有 `<div id="site-header"></div>` 与 `<div id="site-footer"></div>`
-两个占位符，header/footer（含备案号）由网站家族的 scripts/inject.py 在构建时注入 ——
-所以备案号这类合规信息只在一个地方维护，这个脚本一个字都不写死。
+本站是**独立站**：页头是我们自己的（品牌 + 检索/下载/关于/仓库链接），不套主站的家族导航；
+只在页面上留一个 `<div id="site-footer"></div>` 占位符，由网站家族的 scripts/inject.py
+在构建时注入页脚 —— 与主站共用的只有**备案号**那一份信息，其真源是 site-config.json，
+所以这个脚本一个字都不写死备案号。
 
 零 JS 可读：除了 search.html（检索页，唯一需要 JS 的地方），全站不含 <script>。
 正文原样转载，未作内容改动；每页标注同步自哪个上游提交。
@@ -26,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "2"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "3"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -45,6 +46,13 @@ TOKENS = """:root {
 STYLE = TOKENS + """
 /* 这一份是 better 站自己的样式，叠在共享的 assets.aigcwei.cn/style.css 之上 */
 a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破 375px 窄屏 */
+/* 本站自己的页头：这是独立站，不用主站的家族导航；页脚仍然用家族那份（只出备案号） */
+.b-topbar { position: sticky; top: 0; z-index: 10; background: var(--paper);
+            border-bottom: 1px solid var(--hairline); }
+.b-topbar-inner { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; padding: .65rem 0; }
+.b-brand { font-weight: 700; text-decoration: none; color: var(--ink); font-family: var(--font-serif); }
+.b-tag { font-size: .78rem; color: var(--muted); }
+.b-links { margin-left: auto; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .9rem; }
 .b-hero { padding: 1.4rem 0 0.6rem; }
 .b-hero h1 { font-family: var(--font-serif); font-size: 1.9rem; margin: 0 0 .4rem; }
 .b-hero p { color: var(--ink-secondary); margin: .3rem 0; }
@@ -97,6 +105,8 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
 }
 """
 
+GH_REPO = "https://github.com/Helioswei/HowToLiveBetter-Kit"
+
 FAVICON = '<link rel="icon" type="image/svg+xml" href="https://assets.aigcwei.cn/favicon.svg">'
 SHARED_CSS = '<link rel="stylesheet" href="https://assets.aigcwei.cn/style.css">'
 
@@ -131,7 +141,18 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
   <link rel="stylesheet" href="{up}style.css?v={STYLE_VERSION}">
 {ld_block}</head>
 <body data-site="better">
-  <div id="site-header"></div>
+  <nav class="b-topbar" aria-label="本站导航">
+    <div class="container b-topbar-inner">
+      <a class="b-brand" href="{up}index.html">{html.escape(hltb.TITLE)}</a>
+      <span class="b-tag">非官方转载 · 正文未改动</span>
+      <div class="b-links">
+        <a href="{up}search.html">检索</a>
+        <a href="{up}download.html">下载</a>
+        <a href="{up}about.html">关于与许可</a>
+        <a href="{GH_REPO}" target="_blank" rel="noopener">GitHub 仓库</a>
+      </div>
+    </div>
+  </nav>
 
   <main>
     <div class="container">

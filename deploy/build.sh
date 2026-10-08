@@ -42,7 +42,7 @@ python3 deploy/scripts/inject.py --root "$WORK/site" --out dist \
 #   2. download/ 里是镜像来的上游电子版（PDF/EPUB/离线单文件），那是**下载附件**不是本站页面，
 #      本来就没有我们的外壳与备案号，必须排除
 miss=$({ grep -rL 'ICP备' dist --include='*.html' --exclude-dir=download || true; } | wc -l | tr -d ' ')
-left=$({ grep -rl 'id="site-header"></div>' dist --include='*.html' --exclude-dir=download || true; } | wc -l | tr -d ' ')
+left=$({ grep -rl 'id="site-footer"></div>' dist --include='*.html' --exclude-dir=download || true; } | wc -l | tr -d ' ')
 echo "  缺备案号的页面：${miss}　残留占位符的页面：${left}"
 if [ "$miss" != "0" ] || [ "$left" != "0" ]; then echo "✗ 外壳注入不合格"; exit 1; fi
 for f in HowToLiveBetter.epub HowToLiveBetter.pdf HowToLiveBetter.html HowToLiveBetter.apkg; do

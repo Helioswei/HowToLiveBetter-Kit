@@ -84,17 +84,18 @@ def main():
         with open(p, encoding="utf-8") as fh:
             doc = fh.read()
 
-        # 2. 骨架：favicon / 共享样式 / 外壳（模板版是两个占位符，注入版是渲染好的 header/footer）
+        # 2. 骨架：favicon / 共享样式 / 我们自己的页头 / 页脚（本站独立，页头不套主站家族导航；
+        #    页脚仍是家族注入的那份，只出备案号）
         if a.injected:
             shell_needles = (("assets.aigcwei.cn/favicon.svg", "favicon"),
                              ("assets.aigcwei.cn/style.css", "共享样式"),
-                             ('class="site-header"', "注入后的 header"),
-                             ('class="site-footer"', "注入后的 footer"),
+                             ('class="b-topbar"', "本站页头"),
+                             ('class="site-footer"', "注入后的页脚"),
                              ('data-site="better"', "data-site"))
         else:
             shell_needles = (("assets.aigcwei.cn/favicon.svg", "favicon"),
                              ("assets.aigcwei.cn/style.css", "共享样式"),
-                             ('<div id="site-header"></div>', "header 占位符"),
+                             ('class="b-topbar"', "本站页头"),
                              ('<div id="site-footer"></div>', "footer 占位符"),
                              ('data-site="better"', "data-site"))
         for needle, label in shell_needles:
