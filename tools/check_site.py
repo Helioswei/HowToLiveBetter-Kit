@@ -18,6 +18,11 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "tools", "lib"))
+try:
+    import hltb  # 只用来知道"上游有几篇场景长文"，才能把期望页数算准
+except Exception:
+    hltb = None
 
 RE_HREF = re.compile(r'href="([^"]+)"')
 RE_SRC = re.compile(r'src="([^"]+)"')
@@ -66,10 +71,20 @@ def main():
                 pages.append(os.path.relpath(os.path.join(dp, fn), root))
     pages = sorted(p.replace(os.sep, "/") for p in pages)
 
-    # 1. 页数
-    expect_pages = len(sections) + len(entries) + 4  # 节页 + 条目页 + 首页/关于/下载/检索
-    info.append("页面 %d 个（期望 %d = %d 节 + %d 条 + 4 个固定页）"
-                % (len(pages), expect_pages, len(sections), len(entries)))
+    # 1. 页数 = 节页 + 条目页 + 首页/关于/下载/检索 + 场景索引 + 各场景页
+    n_scenes = 0
+    if hltb is not None:
+        try:
+            up = os.environ.get("HLTB_UPSTREAM") or hltb.default_root(ROOT)
+            n_scenes = len(hltb.parse_docs(up))
+        except Exception:
+            n_scenes = 0
+    expect_pages = len(sections) + len(entries) + 4 + ((1 + n_scenes) if n_scenes else 0)
+    info.append("页面 %d 个（期望 %d = %d 节 + %d 条 + 4 个固定页%s）"
+                % (len(pages), expect_pages, len(sections), len(entries),
+                   " + 场景 %d 页" % (1 + n_scenes) if n_scenes else ""))
+    if not n_scenes:
+        warnings.append("没读到上游 docs/，场景页数量这次没有严格校验")
     if len(pages) != expect_pages:
         errors.append("页面数不对：实际 %d，期望 %d" % (len(pages), expect_pages))
 

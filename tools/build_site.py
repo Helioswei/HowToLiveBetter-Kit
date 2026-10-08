@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "4"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "5"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -152,6 +152,27 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
           border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper); }
 .b-bar .b-count { font-weight: 600; }
 .b-bar .b-hint { color: var(--muted); }
+/* ---- 场景时间轴 ---- */
+.b-tl { margin: 1.4rem 0 0; }
+.b-tl-step { position: relative; padding: 0 0 0 1.5rem; border-left: 2px solid var(--hairline);
+             margin: 0 0 1.7rem; }
+.b-tl-step::before { content: ""; position: absolute; left: -8px; top: .3rem; width: 14px; height: 14px;
+             border-radius: 50%; background: var(--accent); border: 3px solid var(--paper); }
+.b-tl-step h2 { font-size: 1.14rem; margin: 0 0 .6rem; }
+.b-tl-step ol { padding-left: 1.3rem; margin: .4rem 0; }
+.b-tl-step li { margin: .5rem 0; }
+.b-refs { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--hairline); }
+.b-refs h2 { font-size: 1rem; margin: 0 0 .6rem; }
+.b-refs ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .35rem;
+             font-size: .92rem; }
+.b-scenes { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .8rem;
+            margin: 1rem 0 0; }
+.b-scene-card { display: block; padding: .9rem 1rem; border: 1px solid var(--hairline);
+            border-radius: var(--radius-md); background: var(--paper-soft); text-decoration: none;
+            color: inherit; }
+.b-scene-card:hover { border-color: var(--accent); }
+.b-scene-card b { display: block; margin-bottom: .3rem; }
+.b-scene-card span { font-size: .84rem; color: var(--muted); }
 .b-hit h3 { font-size: 1rem; margin: 0 0 .3rem; }
 @media (max-width: 520px) {
   .b-secs a { grid-template-columns: 2.2rem 1fr; grid-template-areas: "n t" ". c" ". q"; }
@@ -265,6 +286,7 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
       <a class="b-brand" href="{up}index.html">{html.escape(hltb.TITLE)}</a>
       <span class="b-tag">非官方转载 · 正文未改动</span>
       <div class="b-links">
+        <a href="{up}scenes/">场景</a>
         <a href="{up}search.html">检索</a>
         <a href="{up}download.html">下载</a>
         <a href="{up}about.html">关于与许可</a>
@@ -390,9 +412,74 @@ def section_body(b, sec, titles):
       <nav class="b-pager">{pager}</nav>"""
 
 
+def scenes_index_body(b, scenes):
+    cards = "".join(
+        '<a class="b-scene-card" href="%s.html"><b>%s</b><span>%d 个时间段 · %d 步</span></a>'
+        % (sc["slug"], html.escape(sc["title"]), len(sc["sections"]),
+           sum(len(x["steps"]) for x in sc["sections"]))
+        for sc in scenes)
+    return f"""      <nav class="breadcrumb"><a href="../index.html">目录</a> <span class="sep">›</span> <span class="cur">按场景看</span></nav>
+      <div class="b-hero">
+        <h1>按场景看</h1>
+        <p>不知道从哪下手的时候，从"我正在经历什么"进：<strong>每一篇都是按时间排的</strong>
+           （当天 → 头一周 → 头一个月），每一步都链到书里对应的条目。</p>
+        <p class="b-stat">内容是《{html.escape(hltb.TITLE)}》原文里已有的长文，未改动，只是把指路变成了可点的链接。</p>
+      </div>
+      <div class="b-scenes">{cards}</div>
+      {DISCLAIMER_NOTE}"""
+
+
+def scene_body(b, scene, scenes, titles):
+    steps_html, refs = [], set()
+    for sec in scene["sections"]:
+        items = "".join("<li>%s</li>" % hltb.inline(x, 0, titles) for x in sec["steps"])
+        tail = "".join(paras(x, 0, titles) for x in sec["paras"])
+        steps_html.append('<section class="b-tl-step"><h2>%s</h2>%s%s</section>'
+                          % (html.escape(sec["heading"]), tail, ("<ol>%s</ol>" % items) if items else ""))
+        for x in sec["steps"]:
+            for a_, b_ in hltb.RE_XREF_FAR.findall(x):
+                refs.add((int(a_), int(b_)))
+    chips = "".join(
+        '<li><a href="../%02d/%02d.html">第 %d 节第 %d 条 %s</a>'
+        '<span class="b-badge %s">性价比 %s</span></li>'
+        % (sn, en, sn, en, html.escape(titles.get((sn, en), "")),
+           "top" if RATIO.get((sn, en)) == "极高" else "", RATIO.get((sn, en), ""))
+        for sn, en in sorted(refs))
+    idx = [x["slug"] for x in scenes].index(scene["slug"])
+    pager = '<a href="index.html">← 按场景看</a>'
+    if idx > 0:
+        pager += '<a href="%s.html">← %s</a>' % (scenes[idx - 1]["slug"], html.escape(scenes[idx - 1]["title"]))
+    if idx + 1 < len(scenes):
+        pager += '<a href="%s.html">%s →</a>' % (scenes[idx + 1]["slug"], html.escape(scenes[idx + 1]["title"]))
+    return f"""      <nav class="breadcrumb"><a href="../index.html">目录</a> <span class="sep">›</span> <a href="index.html">按场景看</a> <span class="sep">›</span> <span class="cur">{html.escape(scene['title'][:12])}</span></nav>
+      <div class="b-hero">
+        <h1>{html.escape(scene['title'])}</h1>
+        {paras(scene['intro'], 0, titles)}
+        <p class="b-stat">按时间排 · 共 {len(scene['sections'])} 个时间段 {sum(len(x['steps']) for x in scene['sections'])} 步
+           　·　每步都链到书里对应的条目　·　{sync_line(b['source'])}</p>
+      </div>
+      <div class="b-tl">{''.join(steps_html)}</div>
+      <div class="b-refs"><h2>这一篇引用了这些条目（{len(refs)} 条）</h2><ul>{chips}</ul></div>
+      <p class="b-note">本篇是《{html.escape(hltb.TITLE)}》原文 <code>{html.escape(scene['file'])}</code> 的转载，未作改动；
+         只把文中的「见第 X 节第 Y 条」变成了可以点的链接。{DISCLAIMER}</p>
+      <nav class="b-pager">{pager}</nav>"""
+
+
 def index_body(b):
     total = len(b["entries"])
     top = sum(1 for e in b["entries"] if e.get("ratio") == "极高")
+    scenes = b.get("scenes") or []
+    scene_cards = ""
+    if scenes:
+        cards = "".join(
+            '<a class="b-scene-card" href="scenes/%s.html"><b>%s</b><span>%d 个时间段 · %d 步</span></a>'
+            % (sc["slug"], html.escape(sc["title"]), len(sc["sections"]),
+               sum(len(x["steps"]) for x in sc["sections"]))
+            for sc in scenes)
+        scene_cards = ('<h2 style="font-size:1.05rem;margin:1.6rem 0 .2rem">'
+                       '按场景看（不知道从哪下手就从这里进）</h2>'
+                       '<div class="b-scenes">%s</div>'
+                       '<p class="b-stat" style="margin-top:.6rem"><a href="scenes/">全部场景 →</a></p>' % cards)
     rows = "".join(
         '<li><a href="%02d/"><span class="b-sn">%02d</span><span class="b-st">%s</span>'
         '<span class="b-sc">%d 条</span><span class="b-sq">%s</span></a></li>'
@@ -406,6 +493,7 @@ def index_body(b):
            共 {len(b['sections'])} 节 {total} 条　·　{sync_line(b['source'])}</p>
         <p class="b-stat"><a href="search.html#ratio=%E6%9E%81%E9%AB%98">我该做哪几条（{top} 条零成本高收益）</a>　·　<a href="search.html">检索全部 {total} 条</a>　·　<a href="download.html">下载电子版</a>　·　<a href="about.html">关于与许可</a></p>
       </div>
+      {scene_cards}
       <ol class="b-secs">{rows}</ol>
       <p class="b-note">{DISCLAIMER}</p>"""
 
@@ -677,8 +765,10 @@ def main():
                     help="规范化数据（tools/build_mcp_data.py 产出；站点与 MCP 共用同一份）")
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "site"))
     ap.add_argument("--base", default="https://better.aigcwei.cn", help="站点根 URL（canonical/sitemap 用）")
+    ap.add_argument("--upstream", default=None, help="上游目录（读 docs/ 下按时间排的场景长文）")
     a = ap.parse_args()
 
+    a.upstream = a.upstream or hltb.default_root(ROOT)
     with open(a.data, encoding="utf-8") as fh:
         book = json.load(fh)
     src = book["source"]
@@ -702,6 +792,11 @@ def main():
             entries.append(it)
         sections.append(sec)
     data = {"source": src, "sections": sections, "entries": entries}
+
+    # 场景长文（上游 docs/ 里按时间排的那几篇）+ 性价比查询表（场景页要给每条挂徽章）
+    scenes = hltb.parse_docs(a.upstream)
+    global RATIO
+    RATIO = {(e["sec"], e["num"]): e["ratio"] for e in entries}
 
     # 条目补上节标题与页码导航，渲染时用
     sec_title = {s["num"]: s["title"] for s in data["sections"]}
@@ -728,10 +823,33 @@ def main():
 
     top_count = sum(1 for e in entries if e["ratio"] == "极高")
 
+    # 场景页（上游 docs/ 里按时间排的四篇：被裁/生孩子/确诊慢病/换工作换城市）
+    if scenes:
+        write("scenes/index.html", page("按场景看 - %s" % hltb.TITLE,
+                                        "按时间排的清单：被裁了之后先做什么、孩子出生前后要办的事、刚确诊慢性病之后、换工作换城市之前。",
+                                        scenes_index_body({"source": src}, scenes), base, "scenes/index.html",
+                                        ld={"@context": "https://schema.org", "@type": "CollectionPage",
+                                            "name": "按场景看", "inLanguage": "zh-CN", "url": base + "/scenes/"},
+                                        depth=1),
+              "按场景看", "按时间排的四篇清单", 0.8)
+        for sc in scenes:
+            write("scenes/%s.html" % sc["slug"],
+                  page("%s - %s" % (sc["title"], hltb.TITLE),
+                       "按时间排的清单：%s" % " → ".join(x["heading"] for x in sc["sections"][:4]),
+                       scene_body({"source": src}, sc, scenes, titles), base, "scenes/%s.html" % sc["slug"],
+                       ld={"@context": "https://schema.org", "@type": "Article",
+                           "headline": sc["title"], "inLanguage": "zh-CN",
+                           "isBasedOn": "%s/blob/main/%s" % (src["repo"], sc["file"]),
+                           "author": {"@type": "Person", "name": src["author"]},
+                           "license": src["license_url"],
+                           "url": "%s/scenes/%s.html" % (base, sc["slug"])}, depth=1),
+                  sc["title"], "按时间排的清单", 0.7)
+
     # 首页
     write("index.html", page("%s · 按性价比排序的 %d 条建议" % (hltb.TITLE, len(entries)),
                              "672 条按性价比排序的循证建议，每条写明成本、收益、证据等级和原始出处。国内可访问的在线阅读版，每条一个链接。",
-                             index_body({"sections": data["sections"], "entries": entries, "source": src}),
+                             index_body({"sections": data["sections"], "entries": entries, "source": src,
+                                         "scenes": scenes}),
                              base, "index.html", ld={
                                  "@context": "https://schema.org", "@type": "Book",
                                  "name": hltb.TITLE, "author": {"@type": "Person", "name": src["author"]},

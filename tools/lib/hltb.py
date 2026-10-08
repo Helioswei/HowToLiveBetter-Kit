@@ -36,6 +36,16 @@ RE_XREF_FAR = re.compile(r"见第\s*(\d+)\s*节第\s*(\d+)\s*条")
 RE_XREF_NEAR = re.compile(r"见本节第\s*(\d+)\s*条")
 # 上游每节开头的返回链接，我们自己的壳负责导航
 RE_BACK_LINK = re.compile(r"^\[← 回总目录\]\([^)]*\)\s*\n")
+RE_H2 = re.compile(r"^##\s+(.+)$", re.M)
+
+# 上游 docs/ 下"按时间排的场景长文"：H2 就是时间段（当天 / 头一周 / 头一个月…）。
+# 只收这份白名单里的，顺序即页面展示顺序；上游哪天新加一篇，这里加一行、给个英文 slug 即可。
+SCENE_SLUGS = {
+    "被裁了之后先做什么": "laid-off",
+    "孩子出生前后要办的事": "having-a-baby",
+    "刚确诊慢性病之后": "new-diagnosis",
+    "换工作、换城市之前": "job-and-city-change",
+}
 
 
 class ParseError(RuntimeError):
@@ -220,6 +230,50 @@ def split_paras(text):
     if not text:
         return []
     return [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
+
+
+def parse_docs(root):
+    """解析上游 docs/ 的「场景长文」：H1 标题、H2 时间段、每段正文（编号列表 + 段落）。
+
+    不新增任何内容，只把已有的条目按时间重排并保留其「见第 X 节第 Y 条」的指路，
+    渲染时再把那些指路变成真链接。
+    """
+    out = []
+    docs_dir = os.path.join(str(root), "docs")
+    if not os.path.isdir(docs_dir):
+        return out
+    for name in sorted(os.listdir(docs_dir)):
+        base = name[:-3]
+        if not name.endswith(".md") or base not in SCENE_SLUGS:
+            continue
+        md = RE_BACK_LINK.sub("", read_text(root, "docs/" + name))
+        h1 = re.search(r"^#\s+(.+)$", md, re.M)
+        title = h1.group(1).strip() if h1 else base
+        body = md[h1.end():] if h1 else md
+        heads = list(RE_H2.finditer(body))
+        sections = []
+        for i, h in enumerate(heads):
+            end = heads[i + 1].start() if i + 1 < len(heads) else len(body)
+            raw = body[h.end():end].strip()
+            steps, tail = [], []
+            for line in raw.split("\n"):
+                line = line.strip()
+                if not line:
+                    continue
+                m = re.match(r"^\d+\.\s+(.*)$", line)
+                if m:
+                    steps.append(m.group(1))
+                elif steps:
+                    steps[-1] += " " + line      # 续行并进上一条
+                else:
+                    tail.append(line)
+            sections.append({"heading": h.group(1).strip(), "steps": steps, "paras": tail})
+        intro = body[:heads[0].start()].strip() if heads else body.strip()
+        out.append({"key": base, "slug": SCENE_SLUGS[base], "title": title, "intro": intro,
+                    "file": "docs/" + name, "sections": sections})
+    order = {k: i for i, k in enumerate(SCENE_SLUGS)}
+    out.sort(key=lambda x: order.get(x["key"], 99))
+    return out
 
 
 def entry_titles(book):
