@@ -2,6 +2,8 @@
 
 把《高性价比人生指南》接给 AI 助手用：一个 **MCP 服务** + 一套**国内可访问的静态站**工具。
 
+[![npm](https://img.shields.io/npm/v/howtolivebetter-mcp.svg)](https://www.npmjs.com/package/howtolivebetter-mcp)
+
 672 条建议，34 节。装上一个 MCP 客户端，你问「替朋友担保签不签」，AI 会先去查这本书，
 再把原文读给你听，并注明**出自第几节第几条**；书里没写的，它会说没写。
 
@@ -17,7 +19,7 @@
 | 部分 | 状态 |
 |:---|:---|
 | MCP 服务（四个工具） | ✅ 可用，19 个测试全绿 |
-| npm 包 `howtolivebetter-mcp` | ⏳ 待发布（先按下面「从源码跑」用） |
+| npm 包 [`howtolivebetter-mcp`](https://www.npmjs.com/package/howtolivebetter-mcp) | ✅ 已发布 0.1.0（npx 真装真连验过；国内镜像已同步） |
 | 在线阅读版 [`better.aigcwei.cn`](https://better.aigcwei.cn/) | ✅ 已上线：710 页，含检索与「我的清单」、阅读设置（字号/行距/深色）与朗读 |
 | 每日自动同步上游 | ✅ 已配（`.github/workflows/sync.yml`） |
 | 站点每日自动重打包 | ✅ 已配（`.github/workflows/site.yml`） |
@@ -26,7 +28,8 @@
 
 ## 30 秒装上
 
-发布后只需要一行配置（不需要 API key、不需要联网）：
+已发布到 npm：`npx -y howtolivebetter-mcp`（国内镜像 registry.npmmirror.com 已同步，装得快）。
+一行配置就够了（不需要 API key、不需要联网）：
 
 ```json
 {
@@ -61,7 +64,7 @@ mcp_servers:
 ```
 </details>
 
-### 从源码跑（npm 包发布前用这个）
+### 从源码跑（想改代码时用这个）
 
 ```bash
 git clone https://github.com/Helioswei/HowToLiveBetter-Kit.git
