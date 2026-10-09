@@ -41,6 +41,7 @@ python3 deploy/scripts/inject.py --root build/site --out dist \
 python3 tools/annotate_downloads.py --site dist --quiet || true
 
 echo "== 4/4 自检 =="
+python3 tools/check_python_warnings.py
 python3 tools/check_site.py --root dist --injected --skip-downloads | tail -3
 
 if [ "$SERVE" = "1" ]; then

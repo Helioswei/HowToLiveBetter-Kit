@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "11"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "23"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -79,27 +79,55 @@ html[data-size="s"] .article-body p, html[data-size="l"] .article-body p, html[d
 html[data-size="s"] .b-entry, html[data-size="l"] .b-entry, html[data-size="xl"] .b-entry { font-size: 1rem; }
 html[data-leading="w"] body, html[data-leading="w"] .article-body p, html[data-leading="w"] .b-entry { line-height: 2.05; }
 
-.b-prefs { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; margin: 1.6rem 0 0;
-           padding: .6rem .8rem; border: 1px solid var(--hairline); border-radius: var(--radius-md);
-           background: var(--paper-soft); font-size: .84rem; color: var(--ink-secondary); }
+/* 阅读设置：右下角一个悬浮按钮，点开才是面板（原来是页脚里横着一条，占版面又像正文的一部分） */
+.b-prefs { position: fixed; right: .9rem; bottom: .9rem; z-index: 30; display: flex;
+           flex-direction: column; align-items: flex-end; gap: .4rem; margin: 0; padding: 0;
+           border: 0; background: none; font-size: .84rem; color: var(--ink-secondary); }
+.b-prefs.lifted { bottom: 5.2rem; }   /* 检索页底部有操作条，别压在一起 */
+.b-prefs > button { font: inherit; font-size: .84rem; cursor: pointer; padding: .4rem .85rem;
+           border: 1px solid var(--hairline); border-radius: 999px; background: var(--paper);
+           color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.10); }
+.b-prefs > button:hover { border-color: var(--accent); color: var(--accent-strong); }
+.b-prefs-panel { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem .8rem;
+           padding: .7rem .9rem; border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+           background: var(--paper-soft); box-shadow: 0 4px 16px rgba(0,0,0,.14); }
+.b-prefs-panel[hidden] { display: none; }
 .b-prefs label { display: inline-flex; align-items: center; gap: .3rem; }
 .b-prefs select { font: inherit; font-size: .84rem; padding: .15rem .3rem; background: var(--paper);
                   color: var(--ink); border: 1px solid var(--hairline); border-radius: var(--radius-sm); }
-.b-prefs button { font: inherit; font-size: .84rem; padding: .2rem .7rem; cursor: pointer;
+.b-prefs-panel button { font: inherit; font-size: .84rem; padding: .2rem .7rem; cursor: pointer;
                   background: var(--paper); color: var(--ink); border: 1px solid var(--hairline);
-                  border-radius: var(--radius-md); }
-.b-prefs .b-sep { margin-left: auto; color: var(--muted); font-size: .78rem; }
+                  border-radius: 999px; }
+.b-prefs .b-sep { flex-basis: 100%; color: var(--muted); font-size: .76rem; }
+/* 页脚小字区：署名一行 + 免责一句，永远待在一起（免责以前挂在正文末尾，
+   于是"离署名多远"取决于这页有没有翻页块 —— 首页 38px、条目页 152px，看着像不一致）。
+   ⚠️ ① 免责那句别挪回正文：check_site 会断言每页都有"不构成诊疗意见"。
+   ⚠️ ② 这个块必须留在 <main .container> **里面**：放外面就只有最大宽度、没有居中，
+        会贴到屏幕最左边（曾经就这么错过）。
+   ③ 用居中 + 与正文同宽（44rem）：条目页的正文是居中窄列，页脚版权行也是居中，
+      小字跟着居中才在同一根轴线上（左对齐会变成第三根轴，看着就是"左右位置不对"）。 */
+.b-smallprint { max-width: 44rem; margin: 2.6rem auto .3rem; text-align: center;
+                font-size: .8rem; line-height: 1.8; color: var(--muted); }
+.b-smallprint p { margin: 0; }
+.b-smallprint p + p { margin-top: .22rem; }
+.b-smallprint a { color: var(--ink-secondary); }
 a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破 375px 窄屏 */
 /* 本站自己的页头：这是独立站，不用主站的家族导航；页脚仍然用家族那份（只出备案号） */
 .b-topbar { position: sticky; top: 0; z-index: 10; background: var(--paper);
             border-bottom: 1px solid var(--hairline); }
-.b-topbar-inner { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; padding: .65rem 0; }
+/* ⚠️ 只能改上下内边距，别写 padding: … 0 —— 那会把 .container 的左右内边距清零，
+   顶栏内容就会比正文左移 24px（实测过：顶栏 90 / 正文 114）。 */
+.b-topbar-inner { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+                  padding-top: .65rem; padding-bottom: .65rem; }
 .b-brand { font-weight: 700; text-decoration: none; color: var(--ink); font-family: var(--font-serif); }
 .b-tag { font-size: .78rem; color: var(--muted); }
 .b-links { margin-left: auto; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .95rem; }
 .b-links a { color: var(--ink); text-decoration: none; }
 .b-links a:hover { color: var(--accent-strong); }
 .b-hero { padding: 1.4rem 0 0.6rem; }
+/* 长文页（about / download）：hero 跟下面的正文列用同一根列，
+   不然 hero 铺满容器、正文是窄列，左边缘对不上（这轮就退回过一次）。 */
+.b-hero.narrow { max-width: 44rem; margin-inline: auto; }
 .b-hero h1 { font-family: var(--font-serif); font-size: 1.9rem; margin: 0 0 .4rem; }
 .b-hero p { color: var(--ink-secondary); margin: .3rem 0; }
 .b-stat { font-size: .86rem; color: var(--muted); }
@@ -164,7 +192,11 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
 .b-bar .b-count { font-weight: 600; }
 .b-bar .b-hint { color: var(--muted); }
 /* ---- 排版美化：阅读感 ---- */
-.article-body { max-width: 44rem; }
+/* 长文（about / download）直接铺在容器里，限制行宽并居中；
+   但条目页的 .article 本身已经是 780 的居中窄列，内层**不能**再缩一次
+   （缩了会变成 704 左对齐 → 正文中轴 602、页面中轴 640，差 38px 看得出来）。 */
+.article-body { max-width: 44rem; margin-inline: auto; }
+.article .article-body { max-width: none; }
 .article-body p { line-height: 1.95; margin: .78rem 0; }
 .article-header h1 { font-family: var(--font-serif); letter-spacing: .01em; }
 .article-meta { color: var(--muted); font-size: .84rem; }
@@ -189,11 +221,27 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
          color: var(--accent-strong); text-decoration: none; font-size: .9em; white-space: nowrap; }
 .b-ref:hover { background: var(--accent); color: #fff; }
 .b-refs-inline { line-height: 2.2; }
-/* 节页导览块：书里"本节条目按主题分成下面几块，括号里是条号"那一段 */
+/* 节页导览块：书里"本节条目按主题分成下面几块，括号里是条号"那一段。
+   上游是一句话式的清单，这里按它本来的结构分块：组名做小标题、每条一个可点 chip。
+   ⚠️ 一个字都不许改 —— check_site 会断言导览原文在页面上逐字按序出现。 */
 .b-intro { background: var(--paper-soft); border: 1px solid var(--hairline);
            border-radius: var(--radius-lg); padding: .3rem 1.1rem .8rem; margin: 1rem 0 1.4rem;
            max-width: none; }
-.b-intro p { line-height: 2.0; }
+.b-intro p { line-height: 1.95; }
+.b-intro > p { font-size: .93rem; color: var(--ink-secondary); }
+.b-group { margin: 1.1rem 0 .1rem; }
+.b-group-t { font-size: .98rem; font-weight: 700; color: var(--accent-strong); margin: 0 0 .5rem;
+             padding-left: .55rem; box-shadow: inset 3px 0 0 var(--accent); letter-spacing: .01em; }
+.b-items { margin: 0; line-height: 2.5; }
+.b-chip { display: inline-block; margin: 0 .3rem .3rem 0; padding: .1rem .55rem;
+          border: 1px solid var(--hairline-soft); border-radius: var(--radius-sm);
+          background: var(--paper); color: var(--ink); text-decoration: none; font-size: .9rem; }
+.b-chip:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
+.b-chip .b-ref-n { color: var(--muted); font-size: .88em; }
+/* 极高性价比那几条：用淡底填充，而不是描边 —— 描边在密集的 chip 里像"当前选中"，会误导 */
+.b-chip.top { background: var(--accent-soft); border-color: transparent; }
+.b-chip.top .b-ref-n { color: var(--accent-strong); }
+.b-sep-c { color: var(--muted); }
 .b-intro strong { color: var(--accent-strong); }
 /* 节页条目卡：留白更松、极高那几条左边补一道强调条、悬停有反馈 */
 .b-entry { padding: 1.15rem .9rem; margin: 0 -.9rem; border-radius: var(--radius-md); }
@@ -231,9 +279,7 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
 .b-hit h3 { font-size: 1rem; margin: 0 0 .3rem; }
 /* ================= 第二轮：控件 / 列表 / 卡片 ================= */
 
-/* 阅读设置条：它以前被插到 <html> 下、横在页面顶部当裸条；现在归到正文容器末尾 */
-.b-prefs { margin: 1.4rem 0 0; padding: .7rem .9rem; }
-.b-prefs label { gap: .35rem; }
+/* 阅读设置条：它以前被插到 <html> 下、横在页面顶部当裸条；后来归到正文末尾，现在改成右下角悬浮 */
 .b-prefs select { appearance: none; -webkit-appearance: none; padding: .22rem 1.5rem .22rem .5rem;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b8478' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right .45rem center; }
@@ -345,7 +391,9 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
   .b-hero h1 { font-size: 1.6rem; }
   .b-filters { grid-template-columns: 1fr; }
   .b-bar { justify-content: space-between; }
-  .b-prefs .b-sep { margin-left: 0; }
+  .b-prefs { right: .6rem; bottom: .6rem; }
+  .b-prefs.lifted { bottom: 4.6rem; }
+  .b-prefs-panel { max-width: calc(100vw - 1.2rem); }
 }
 """
 
@@ -367,7 +415,10 @@ if(p.theme)h.setAttribute('data-theme',p.theme);}catch(e){}})();
 
 # 页尾的阅读设置那一行：字号 / 行距 / 主题 + 朗读。
 # 正文不依赖它（没有 JS 时这一行不出现，页面照读）；设置只存在浏览器里。
-BODY_PREFS = """<script>
+# ⚠️ 必须是 raw 字符串：下面是嵌进去的 JavaScript，里面有 /\s+/g 这种 JS 正则
+# 和非 raw 字符串里会被 Python 当"非法转义序列"告警（SyntaxWarning/DeprecationWarning）。
+# 同理，\u3002 交给 JS 自己解，Python 在 raw 下不会动它。
+BODY_PREFS = r"""<script>
 (function(){
   var K='hltb.prefs', h=document.documentElement;
   function load(){try{return JSON.parse(localStorage.getItem(K)||'{}')||{}}catch(e){return {}}}
@@ -376,14 +427,20 @@ BODY_PREFS = """<script>
     for(var i=0;i<opts.length;i++){s+='<option value="'+opts[i][0]+'">'+opts[i][1]+'</option>';}
     return s+'</select></label>';}
   var box=document.createElement('div'); box.className='b-prefs';
-  box.innerHTML='<span>阅读设置</span>'
+  box.innerHTML='<div class="b-prefs-panel" hidden>'
+    +'<span class="b-sep" id="b-say">设置只存在你自己的浏览器里</span>'
     +sel('b-size','字号',[['s','小'],['','标准'],['l','大'],['xl','特大']])
     +sel('b-leading','行距',[['','标准'],['w','宽']])
     +sel('b-theme','主题',[['','跟随系统'],['light','浅色'],['dark','深色']])
-    +'<button type="button" id="b-speak">朗读</button>'
-    +'<span class="b-sep" id="b-say">设置只存在你自己的浏览器里</span>';
-  var host=document.querySelector('main .container')||document.querySelector('main')||document.body;
-  host.appendChild(box);
+    +'<button type="button" id="b-speak">朗读</button></div>'
+    +'<button type="button" id="b-toggle" aria-expanded="false">阅读设置</button>';
+  if(document.getElementById('bar')) box.className+=' lifted';  // 检索页底部有操作条，抬起来
+  document.body.appendChild(box);
+  var panel=box.querySelector('.b-prefs-panel'), toggle=box.querySelector('#b-toggle');
+  function flip(open){ panel.hidden=!open; toggle.setAttribute('aria-expanded', open?'true':'false'); }
+  toggle.addEventListener('click', function(){ flip(panel.hidden); });
+  document.addEventListener('click', function(ev){ if(!box.contains(ev.target)) flip(false); });
+  document.addEventListener('keydown', function(ev){ if(ev.key==='Escape') flip(false); });
 
   var size=box.querySelector('#b-size'), lead=box.querySelector('#b-leading'), theme=box.querySelector('#b-theme');
   var say=box.querySelector('#b-say');
@@ -419,7 +476,7 @@ BODY_PREFS = """<script>
 </script>"""
 
 
-def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
+def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_legal=True):
     """一个页面。path 是相对站点根的路径（如 "08/18.html"），用来算相对前缀与 canonical。"""
     up = "../" * depth
     canonical = "%s/%s" % (base, path) if not path.endswith("index.html") else \
@@ -456,7 +513,6 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
   <nav class="b-topbar" aria-label="本站导航">
     <div class="container b-topbar-inner">
       <a class="b-brand" href="{up}index.html">{html.escape(hltb.TITLE)}</a>
-      <span class="b-tag">非官方转载 · 正文未改动</span>
       <div class="b-links">
         <a href="{up}scenes/">场景</a>
         <a href="{up}search.html">检索</a>
@@ -470,6 +526,10 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
   <main>
     <div class="container">
 {body}
+      <div class="b-smallprint">
+        <p>非官方转载《{html.escape(hltb.TITLE)}》· 作者 eternity4719 · 正文未改动 · <a href="{up}about.html">署名与许可</a></p>
+        {('<p>%s</p>' % DISCLAIMER) if with_legal else ''}
+      </div>
     </div>
   </main>
 
@@ -508,9 +568,12 @@ def sync_line(src):
             % (src["repo"], src.get("commit") or "", src.get("commit_short") or "?", (src.get("commit_date") or "")[:10]))
 
 
-DISCLAIMER = ("本条内容来自《%s》原文，未作改动。医学内容不构成诊疗意见，法律内容不构成法律意见；"
-              "个案请咨询执业医师或律师。" % hltb.TITLE)
-DISCLAIMER_NOTE = '<p class="b-note">%s</p>' % DISCLAIMER
+DISCLAIMER = ("医学与法律内容仅供一般参考，不构成诊疗意见或法律意见；"
+              "个案请咨询执业医师、律师或当地主管部门。")
+
+# 节首导览的形状（上游写法，别改）：**组名**：条目A（第 N 条），条目B（第 M 条），…。
+RE_GROUP = re.compile(r"^\*\*(?P<name>[^*\n]{1,40}?)\*\*：(?P<body>.+)$", re.S)
+RE_INTRO_ITEM = re.compile(r"(?P<text>.+?（第\s*(?P<n>\d+)\s*条）)(?P<sep>[，,。；;、]|$)", re.S)
 
 
 # ---------------------------------------------------------------- 各类页面
@@ -543,13 +606,52 @@ def entry_body(b, e, titles):
           {('<div class="b-fl"><b>收益</b>%s</div>' % paras(f['收益'], sec, titles, False)) if f.get('收益') else ''}
           {('<details class="b-more"><summary>来源与备注</summary>%s</details>' % hidden) if hidden else ''}
         </div>
-      </article>
-      <p class="b-note">{DISCLAIMER}</p>
-      <p class="b-perma">{sync_line(b['source'])}　原文出处：<a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">{html.escape(hltb.TITLE)}</a></p>
-      <nav class="b-pager">{e['pager']}</nav>"""
+        <p class="b-perma">{sync_line(b['source'])}　原文出处：<a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">{html.escape(hltb.TITLE)}</a></p>
+        <nav class="b-pager">{e['pager']}</nav>
+      </article>"""
+
+
+def intro_html(intro, sec, titles, ratios):
+    """节首导览的排版。
+
+    上游把「分组清单」写成了一整句：「**组名**：条目A（第 N 条），条目B（第 M 条），…。」
+    照字面渲染就是一屏散落的小药丸。这里**一个字都不动**，只按它本来就有的结构重排：
+    组名做小标题、每个条目（连它的括号编号）做成一个可点的 chip、逗号原样留在 chip 之间。
+    形态不符的段落照旧当普通段落渲染（所以上游改写法也不会崩）。
+    """
+    out = []
+    for p in hltb.split_paras(intro or ""):
+        m = RE_GROUP.match(p.strip())
+        if not m:
+            out.append("<p>%s</p>" % hltb.inline(p, sec, titles))
+            continue
+        pieces, hit = [], False
+        for it in RE_INTRO_ITEM.finditer(m.group("body")):
+            hit = True
+            text, n = it.group("text"), int(it.group("n"))
+            head = re.sub(r"（第\s*\d+\s*条）$", "", text)
+            num = text[len(head):]
+            cls = "b-chip" + (" top" if ratios.get((sec, n)) == "极高" else "")
+            inner = '%s<span class="b-ref-n">%s</span>' % (hltb.inline(head, sec, titles), html.escape(num))
+            title = titles.get((sec, n))
+            if title:  # 目标条目确实存在才做链接（不存在就原样，不去猜）
+                pieces.append('<a class="%s" href="#e%d" title="%s">%s</a>' % (cls, n, html.escape(title), inner))
+            else:
+                pieces.append('<span class="%s">%s</span>' % (cls, inner))
+            # 原文里条目之间是「，」、段末是「。」：这些**列表分隔标点按排版隐藏**（用户拍过），
+            # 一个字的内容都没丢 —— 只是 chip 之间用留白分隔更干净。
+            # check_site 的「导览保真」知道这条规则（分组段比对时两边都去掉这几个标点），
+            # 说明段照旧严格比对（那里的标点不许动）。
+        if not hit:  # 这个"组"里没有条目指路 → 别硬套 chip，照旧
+            out.append("<p>%s</p>" % hltb.inline(p, sec, titles))
+            continue
+        out.append('<div class="b-group"><h3 class="b-group-t">%s<span class="b-sep-c">：</span></h3><p class="b-items">%s</p></div>'
+                   % (hltb.inline(m.group("name"), sec, titles), "".join(pieces)))
+    return "".join(out)
 
 
 def section_body(b, sec, titles):
+    ratios = {(sec["num"], e["num"]): e.get("ratio") for e in sec["entries"]}
     items = []
     for e in sec["entries"]:
         f = e["fields"]
@@ -579,12 +681,11 @@ def section_body(b, sec, titles):
         <h1>{sec['num']}. {html.escape(sec['title'])}</h1>
         {('<p class="b-q">这一节回答：%s</p>' % html.escape(sec['question'])) if sec['question'] else ''}
       </div>
-      <div class="b-intro article-body">
-        {paras(sec['intro'], sec['num'], titles)}
+      <div class="b-intro">
+        {intro_html(sec['intro'], sec['num'], titles, ratios)}
       </div>
       <p class="b-stat">{len(sec['entries'])} 条，按性价比从高到低　·　{sync_line(b['source'])}</p>
 {chr(10).join(items)}
-      <p class="b-note">{DISCLAIMER}</p>
       <nav class="b-pager">{pager}</nav>"""
 
 
@@ -601,8 +702,7 @@ def scenes_index_body(b, scenes):
            （当天 → 头一周 → 头一个月），每一步都链到书里对应的条目。</p>
         <p class="b-stat">内容是《{html.escape(hltb.TITLE)}》原文里已有的长文，未改动，只是把指路变成了可点的链接。</p>
       </div>
-      <div class="b-scenes">{cards}</div>
-      {DISCLAIMER_NOTE}"""
+      <div class="b-scenes">{cards}</div>"""
 
 
 def scene_body(b, scene, scenes, titles):
@@ -636,8 +736,8 @@ def scene_body(b, scene, scenes, titles):
       </div>
       <div class="b-tl">{''.join(steps_html)}</div>
       <div class="b-refs"><h2>这一篇引用了这些条目（{len(refs)} 条）</h2><ul>{chips}</ul></div>
-      <p class="b-note">本篇是《{html.escape(hltb.TITLE)}》原文 <code>{html.escape(scene['file'])}</code> 的转载，未作改动；
-         只把文中的「见第 X 节第 Y 条」变成了可以点的链接。{DISCLAIMER}</p>
+      <p class="b-note">本篇正文来自上游 <code>{html.escape(scene['file'])}</code>（未作改动），
+         只把文中的「见第 X 节第 Y 条」变成了可以点的链接。</p>
       <nav class="b-pager">{pager}</nav>"""
 
 
@@ -666,26 +766,21 @@ def index_body(b):
            每条写明花掉什么、换回什么、证据有多硬，来源只引期刊论文与官方文件。</p>
         <div class="b-cta">
           <a class="b-btn primary" href="search.html#ratio=%E6%9E%81%E9%AB%98">我该做哪几条（{top} 条零成本高收益）</a>
-          <a class="b-btn" href="search.html">检索全部 {total} 条</a>
-          <a class="b-btn" href="download.html">下载电子版</a>
-          <a class="b-btn" href="about.html">关于与许可</a>
         </div>
         <p class="b-meta">
-          <span><strong>原文转载</strong>：正文一个字未改，只重排版式并加了导航、检索与单条链接</span>
           <span>共 {len(b['sections'])} 节 {total} 条</span>
           <span>{sync_line(b['source'])}</span>
         </p>
       </div>
       {scene_cards}
       <h2 class="b-h2">全部 {len(b['sections'])} 节</h2>
-      <ol class="b-secs">{rows}</ol>
-      <p class="b-note">{DISCLAIMER}</p>"""
+      <ol class="b-secs">{rows}</ol>"""
 
 
 def about_body(b):
     src = b["source"]
     return f"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">关于与许可</span></nav>
-      <div class="b-hero"><h1>关于本站与许可</h1></div>
+      <div class="b-hero narrow"><h1>关于本站与许可</h1></div>
       <div class="article-body">
         <h2>这是转载</h2>
         <p>本站正文全部来自 <a href="{src['repo']}" target="_blank" rel="noopener nofollow">eternity4719/HowToLiveBetter</a>
@@ -720,7 +815,7 @@ def download_body(b):
         return ('<li><a href="%s"><b>%s</b><em class="b-dl-size" data-file="%s"></em>'
                 '<span>%s</span></a></li>' % (url, name, f, why))
     return f"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">下载</span></nav>
-      <div class="b-hero"><h1>下载电子版</h1>
+      <div class="b-hero narrow"><h1>下载电子版</h1>
         <p class="b-stat">下面几份由上游在正文更新后自动重新生成，本站做了国内镜像（打开更快）。
            对应上游版本 <code>{src.get('commit_short') or '?'}</code>（{src.get('commit_date') or ''}）。</p></div>
       <div class="article-body">
@@ -735,11 +830,7 @@ def download_body(b):
                 '一条一张卡，按节分子牌组，适合反复复习')}
         </ul>
         <p class="b-stat" data-dl-total></p>
-        <p>镜像失败时请直接到上游下载：<a href="{b['source']['repo']}/releases" target="_blank" rel="noopener nofollow">上游 Release</a>。</p>
-        <h2>许可</h2>
-        <p>这些文件同样是《{html.escape(hltb.TITLE)}》的正文，按 {b['source']['license']} 转载，
-           作者 {b['source']['author']}，原始仓库见上。转发出去的那一份不会跟着更新，以在线版为准。</p>
-      {DISCLAIMER_NOTE}
+        <p>镜像失败时请直接到上游下载：<a href="{b['source']['repo']}/releases" target="_blank" rel="noopener nofollow">上游 Release</a>。这些文件是<strong>快照</strong>：转发出去的那一份不会跟着更新，以在线版为准。</p>
       </div>"""
 
 
@@ -790,6 +881,7 @@ def search_body(cfg):
         var CFG = __CFG__;
         var DATA = null, mode = 'explore', mine = {}, byKey = {};
         var form = document.getElementById('f'), hits = document.getElementById('hits');
+        var FILTERS = ['money', 'time', 'will', 'benefit', 'evidence', 'caliber', 'ratio'];
         var cnt = document.getElementById('count'), mycount = document.getElementById('mycount'), say = document.getElementById('say');
 
         function loadMine() {
@@ -936,16 +1028,36 @@ def search_body(cfg):
         });
 
         function fromHash() {
-          var m = /#p=([0-9.,]*)/.exec(location.hash);
-          if (!m) return false;
-          var keys = m[1].split(',').filter(Boolean);
-          if (!keys.length) return false;
-          keys.forEach(function (k) { mine[k] = 1; });
-          saveMine();
-          mode = 'list';
-          return true;
+          // 链接里可以带筛选条件（如首页"我该做哪几条"的 #ratio=极高）和/或我的清单（#p=…）
+          var h = decodeURIComponent((location.hash || '').replace(/^#/, ''));
+          if (!h) return false;
+          var took = false, filtersOn = false, listOn = false;
+          h.split('&').forEach(function (kv) {
+            var i = kv.indexOf('=');
+            if (i < 0) return;
+            var k = kv.slice(0, i), v = kv.slice(i + 1);
+            if (k === 'p') {
+              var keys = v.split(',').filter(Boolean);
+              if (!keys.length) return;
+              keys.forEach(function (x) { mine[x] = 1; });
+              saveMine(); mode = 'list'; listOn = true; took = true;
+            } else if (FILTERS.indexOf(k) >= 0) {
+              var vals = v.split(',').filter(Boolean);
+              if (!vals.length) return;
+              setFilter(k, vals); filtersOn = true; took = true;
+            }
+          });
+          if (filtersOn) {
+            tell('已按链接里的条件筛选（改条件即时重筛）');
+            // 用完就把 URL 收干净：否则刷新页面条件又回来了，"清空条件"会像没生效
+            history.replaceState(null, '', location.pathname
+              + (listOn ? '#p=' + Object.keys(mine).sort().join(',') : ''));
+          }
+          return took;
         }
         loadMine();
+        // 站在检索页上时再点一个带条件的链接（只改 hash、不重载）也要生效
+        window.addEventListener('hashchange', function () { if (fromHash()) render(); });
         fetch('search-index.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
           DATA = d; cnt.textContent = '索引就绪：共 ' + d.length + ' 条';
           fromHash(); render();
@@ -956,7 +1068,7 @@ def search_body(cfg):
       </script>"""
     body = body.replace("__TOTAL__", str(cfg["total"])).replace("__TOP__", str(cfg["top"]))
     body = body.replace("__CFG__", json.dumps({"base": cfg["base"]}, ensure_ascii=False))
-    return body + DISCLAIMER_NOTE
+    return body
 
 
 # ---------------------------------------------------------------- 主流程
@@ -1094,7 +1206,7 @@ def main():
                              about_body({"source": src}), base, "about.html",
                              ld={"@context": "https://schema.org", "@type": "WebPage",
                                  "name": "关于与许可", "inLanguage": "zh-CN", "url": base + "/about.html"},
-                             depth=0),
+                             depth=0, with_legal=False),  # 这一页自己写了完整的免责，不必在页脚再重复一句
           "关于与许可", "转载说明与许可", 0.5)
     write("download.html", page("下载电子版 - %s" % hltb.TITLE,
                                 "EPUB / PDF / 离线单文件 HTML / Anki 牌组的国内镜像下载。",

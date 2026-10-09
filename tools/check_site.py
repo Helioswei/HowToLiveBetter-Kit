@@ -378,6 +378,46 @@ def main():
         else:
             warnings.append("没读到上游 docs/，场景页保真这轮跳过")
 
+    # 6e. 节页导览保真：导览是按上游原文重排的（切成"组"、组名做小标题、每条一个 chip），
+    #     一个字都不许动。重排 = 把原文切开再拼回去，最容易悄悄吃掉标点 ——
+    #     写这版时就丢过 7 个组名后面的「：」，所以必须有机器盯着，不能靠人眼。
+    #     唯一的例外是**列表分隔标点**：紧跟「（第 N 条）」之后的那一个标点按排版隐藏了
+    #     （chip 之间用留白分隔，用户拍板）。所以分组段比对时按同样规则去掉它 ——
+    #     注意只去"紧跟条目号"的那一个，名字里的「、」（如"烟、酒、槟榔"）是内容，不许动。
+    intro_bad, intro_n = [], 0
+    for s in book.get("sections", []):
+        if not s.get("intro"):
+            continue
+        want = ""
+        for raw in re.split(r"\n\s*\n", s["intro"].strip()):
+            raw = raw.strip()
+            if not raw:
+                continue
+            t = norm_doc(raw)
+            if re.match(r"^\*\*[^*\n]{1,40}?\*\*：", raw):  # 独立写的判定，不复用生成器的正则
+                t = re.sub(r"(（第\s*\d+\s*条）)[，,。；;、]", r"\1", t)
+            want += t
+        rel = "%02d/index.html" % s["n"]
+        p = os.path.join(root, rel)
+        if not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8") as fh:
+            doc = fh.read()
+        m = re.search(r'(?s)<div class="b-intro">(.*?)</div>\s*<p class="b-stat">', doc)
+        if not m:
+            intro_bad.append("%s 找不到导览块" % rel)
+            continue
+        got = norm_doc(htmlmod.unescape(re.sub(r"<[^>]+>", "", m.group(1))))
+        intro_n += 1
+        if got != want:
+            i = next((k for k, (a, b) in enumerate(zip(want, got)) if a != b), min(len(want), len(got)))
+            intro_bad.append("%s 第 %d 字起不一致（源『%s』/ 页『%s』）"
+                             % (rel, i, want[max(0, i - 12):i + 6], got[max(0, i - 12):i + 6]))
+    if intro_bad:
+        errors.append("节页导览与上游原文不一致：%d 节，例如 %s" % (len(intro_bad), intro_bad[:3]))
+    elif intro_n:
+        info.append("节页导览保真：%d 节逐字一致（分组段已去掉隐藏的列表标点）" % intro_n)
+
     # ---------------- 报告
     for line in info:
         print("  · %s" % line)

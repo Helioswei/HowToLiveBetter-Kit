@@ -17,6 +17,11 @@ jobs:
         with:
           python-version: '3.12'
 
+      # 放在最前面：这是纯本地静态检查，不用网络、几秒出结果，
+      # 让"嵌 JS 的 Python 字符串写错了"这类问题第一时间红，而不是等到页面生成出来才发现。
+      - name: Python 护栏（无效转义序列 / 语法告警）
+        run: python3 tools/check_python_warnings.py
+
       - name: 同步上游（浅克隆，记录 commit）
         run: python3 tools/sync.py
 
