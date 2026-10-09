@@ -15,6 +15,7 @@ import html
 import json
 import os
 import re
+from urllib.parse import quote
 
 REPO = "https://github.com/eternity4719/HowToLiveBetter"
 AUTHOR = "eternity4719"
@@ -48,6 +49,16 @@ SCENE_SLUGS = {
     "刚确诊慢性病之后": "new-diagnosis",
     "换工作、换城市之前": "job-and-city-change",
 }
+
+# 「按场景看」收不收一篇，不看人写的名单，看它的**结构**：
+#   有 ≥2 个 H2 时间段 + ≥20 处「见第 X 节第 Y 条」指路 + 没有任何 bullet + 篇幅不巨大。
+# 实测这条规则正好选中上面那 4 篇（30~64 处指路、0 bullet），不多不少；
+# 而《引用对照》（11 万字引用表）、《家庭应急装备清单》《结婚划不划算》（清单/长文，有 bullet）、
+# 《生物钟和夜班》《做平台要办哪些证》（0 指路）都会被排除 —— 它们不是时间轴。
+# 所以上游以后新写一篇同类长文，不用改代码就会自动上站。
+SCENE_MIN_SECTIONS = 2
+SCENE_MIN_REFS = 20
+SCENE_MAX_CHARS = 30000
 
 
 class ParseError(RuntimeError):
@@ -253,20 +264,45 @@ def split_paras(text):
     return [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
 
 
+def scene_doc_files(root):
+    """扫 docs/*.md，按结构挑出「时间轴长文」→ [(文件名, key, slug, url)]。
+
+    新文章自动收录：slug 直接用中文文件名（零依赖、百度认中文 URL），URL 走百分号编码。
+    已收录的那 4 篇继续用英文 slug —— 换 slug 等于换 URL，会把已收录、已分享的链接丢掉。
+    """
+    docs_dir = os.path.join(str(root), "docs")
+    out = []
+    if not os.path.isdir(docs_dir):
+        return out
+    for name in sorted(os.listdir(docs_dir)):
+        if not name.endswith(".md"):
+            continue
+        base = name[:-3]
+        text = read_text(root, "docs/" + name)
+        if len(text) > SCENE_MAX_CHARS:
+            continue
+        if len(RE_H2.findall(text)) < SCENE_MIN_SECTIONS:
+            continue
+        if re.search(r"(?m)^\s*[-*]\s+\S", text):  # 有 bullet = 清单或长文，不是按时间排的场景
+            continue
+        refs = len(RE_XREF_FAR.findall(text)) + len(RE_XREF_NEAR.findall(text))
+        if refs < SCENE_MIN_REFS:
+            continue
+        slug = SCENE_SLUGS.get(base, base)
+        out.append((name, base, slug, quote(slug)))
+    order = {k: i for i, k in enumerate(SCENE_SLUGS)}
+    out.sort(key=lambda x: order.get(x[1], 99))
+    return out
+
+
 def parse_docs(root):
     """解析上游 docs/ 的「场景长文」：H1 标题、H2 时间段、每段正文（编号列表 + 段落）。
 
     不新增任何内容，只把已有的条目按时间重排并保留其「见第 X 节第 Y 条」的指路，
-    渲染时再把那些指路变成真链接。
+    渲染时再把那些指路变成真链接。收哪几篇见 scene_doc_files()（按结构判定，不看名单）。
     """
     out = []
-    docs_dir = os.path.join(str(root), "docs")
-    if not os.path.isdir(docs_dir):
-        return out
-    for name in sorted(os.listdir(docs_dir)):
-        base = name[:-3]
-        if not name.endswith(".md") or base not in SCENE_SLUGS:
-            continue
+    for name, base, slug, url in scene_doc_files(root):
         md = RE_BACK_LINK.sub("", read_text(root, "docs/" + name))
         h1 = re.search(r"^#\s+(.+)$", md, re.M)
         title = h1.group(1).strip() if h1 else base
@@ -290,10 +326,8 @@ def parse_docs(root):
                     tail.append(line)
             sections.append({"heading": h.group(1).strip(), "steps": steps, "paras": tail})
         intro = body[:heads[0].start()].strip() if heads else body.strip()
-        out.append({"key": base, "slug": SCENE_SLUGS[base], "title": title, "intro": intro,
+        out.append({"key": base, "slug": slug, "url": url, "title": title, "intro": intro,
                     "file": "docs/" + name, "sections": sections})
-    order = {k: i for i, k in enumerate(SCENE_SLUGS)}
-    out.sort(key=lambda x: order.get(x["key"], 99))
     return out
 
 

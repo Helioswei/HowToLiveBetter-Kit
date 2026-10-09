@@ -427,6 +427,9 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False):
     import re as _re
 
     canonical = _re.sub(r"/+$", "/", canonical)
+    # 自动收录的长文用中文文件名（URL 更可读、百度也认），canonical 里必须百分号编码
+    from urllib.parse import quote as _quote
+    canonical = _quote(canonical, safe="/:%")
     ld_block = ""
     if ld:
         ld_block = '<script type="application/ld+json">\n%s\n</script>\n' % json.dumps(ld, ensure_ascii=False, indent=2)
@@ -588,7 +591,7 @@ def section_body(b, sec, titles):
 def scenes_index_body(b, scenes):
     cards = "".join(
         '<a class="b-scene-card" href="%s.html"><b>%s</b><span>%d 个时间段 · %d 步</span></a>'
-        % (sc["slug"], html.escape(sc["title"]), len(sc["sections"]),
+        % (sc["url"], html.escape(sc["title"]), len(sc["sections"]),
            sum(len(x["steps"]) for x in sc["sections"]))
         for sc in scenes)
     return f"""      <nav class="breadcrumb"><a href="../index.html">目录</a> <span class="sep">›</span> <span class="cur">按场景看</span></nav>
@@ -621,9 +624,9 @@ def scene_body(b, scene, scenes, titles):
     idx = [x["slug"] for x in scenes].index(scene["slug"])
     pager = '<a href="index.html">← 按场景看</a>'
     if idx > 0:
-        pager += '<a href="%s.html">← %s</a>' % (scenes[idx - 1]["slug"], html.escape(scenes[idx - 1]["title"]))
+        pager += '<a href="%s.html">← %s</a>' % (scenes[idx - 1]["url"], html.escape(scenes[idx - 1]["title"]))
     if idx + 1 < len(scenes):
-        pager += '<a href="%s.html">%s →</a>' % (scenes[idx + 1]["slug"], html.escape(scenes[idx + 1]["title"]))
+        pager += '<a href="%s.html">%s →</a>' % (scenes[idx + 1]["url"], html.escape(scenes[idx + 1]["title"]))
     return f"""      <nav class="breadcrumb"><a href="../index.html">目录</a> <span class="sep">›</span> <a href="index.html">按场景看</a> <span class="sep">›</span> <span class="cur">{html.escape(scene['title'][:12])}</span></nav>
       <div class="b-hero">
         <h1>{html.escape(scene['title'])}</h1>
@@ -646,7 +649,7 @@ def index_body(b):
     if scenes:
         cards = "".join(
             '<a class="b-scene-card" href="scenes/%s.html"><b>%s</b><span>%d 个时间段 · %d 步</span></a>'
-            % (sc["slug"], html.escape(sc["title"]), len(sc["sections"]),
+            % (sc["url"], html.escape(sc["title"]), len(sc["sections"]),
                sum(len(x["steps"]) for x in sc["sections"]))
             for sc in scenes)
         scene_cards = ('<h2 class="b-h2">按场景看（不知道从哪下手就从这里进）</h2>'
@@ -1025,7 +1028,7 @@ def main():
     # 场景页（上游 docs/ 里按时间排的四篇：被裁/生孩子/确诊慢病/换工作换城市）
     if scenes:
         write("scenes/index.html", page("按场景看 - %s" % hltb.TITLE,
-                                        "按时间排的清单：被裁了之后先做什么、孩子出生前后要办的事、刚确诊慢性病之后、换工作换城市之前。",
+                                        "按时间排的清单：%s。" % "、".join(sc["title"] for sc in scenes[:6]),
                                         scenes_index_body({"source": src}, scenes), base, "scenes/index.html",
                                         ld={"@context": "https://schema.org", "@type": "CollectionPage",
                                             "name": "按场景看", "inLanguage": "zh-CN", "url": base + "/scenes/"},
@@ -1041,12 +1044,12 @@ def main():
                            "isBasedOn": "%s/blob/main/%s" % (src["repo"], sc["file"]),
                            "author": {"@type": "Person", "name": src["author"]},
                            "license": src["license_url"],
-                           "url": "%s/scenes/%s.html" % (base, sc["slug"])}, depth=1),
+                           "url": "%s/scenes/%s.html" % (base, sc["url"])}, depth=1),
                   sc["title"], "按时间排的清单", 0.7)
 
     # 首页
     write("index.html", page("%s · 按性价比排序的 %d 条建议" % (hltb.TITLE, len(entries)),
-                             "672 条按性价比排序的循证建议，每条写明成本、收益、证据等级和原始出处。国内可访问的在线阅读版，每条一个链接。",
+                             "%d 条按性价比排序的循证建议，每条写明成本、收益、证据等级和原始出处。国内可访问的在线阅读版，每条一个链接。" % len(entries),
                              index_body({"sections": data["sections"], "entries": entries, "source": src,
                                          "scenes": scenes}),
                              base, "index.html", ld={
@@ -1101,7 +1104,7 @@ def main():
                                 depth=0),
           "下载", "电子版下载", 0.5)
     write("search.html", page("全文检索 - %s" % hltb.TITLE,
-                              "按关键词、成本、证据等级、口径筛选 672 条建议。",
+                              "按关键词、成本、证据等级、口径筛选 %d 条建议。" % len(entries),
                               search_body({"total": len(entries), "top": top_count, "base": base}),
                               base, "search.html",
                               ld={"@context": "https://schema.org", "@type": "WebPage",
@@ -1110,7 +1113,7 @@ def main():
                                                       "target": "%s/search.html?q={q}" % base,
                                                       "query-input": "required name=q"}},
                               depth=0),
-          "检索与我的清单", "筛选 672 条、勾出我的清单、复制分享链接", 0.6)
+          "检索与我的清单", "筛选 %d 条、勾出我的清单、复制分享链接" % len(entries), 0.6)
 
     # 检索索引（只在这一页按需加载）
     idx = [{"s": e["sec"], "n": e["num"], "t": e["title"], "h": (e["fields"].get("说人话") or "")[:160],

@@ -16,6 +16,7 @@ import json
 import os
 import re
 import sys
+from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools", "lib"))
@@ -41,6 +42,45 @@ def norm(s):
 def strip_tags(s):
     s = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", s, flags=re.S)
     return htmlmod.unescape(re.sub(r"<[^>]+>", "", s))
+
+
+def norm_doc(s):
+    """场景页比对的归一化：去掉"渲染必然会变"的三种写法 —— markdown 链接语法、**加粗**、转义星号。
+    比条目那一节更松是应该的：那里是 JSON 比原文（两边同一套写法），这里是页面比原文。"""
+    s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s or "")
+    s = (s or "").replace("\\*", "*").replace("**", "")
+    return re.sub(r"\s+", "", s)
+
+
+def scene_page_text(doc):
+    """场景页的可见文字：去掉脚本/样式/导航/页脚，再剥标签（我们生成的那几块留着也无妨 —— 
+    这道检查只断言"上游的每句都在、顺序不变"，多出来的字不会造成假通过）。"""
+    s = re.sub(r"(?s)<(script|style|nav|footer)[^>]*>.*?</\1>", " ", doc)
+    s = re.sub(r"(?s)<(head)[^>]*>.*?</\1>", " ", s)
+    return htmlmod.unescape(re.sub(r"<[^>]+>", " ", s))
+
+
+def scene_chunks(md):
+    """上游那篇长文按我们渲染的顺序切成片段：H1 标题、H2 时间段、编号步骤（保留原文、只剥掉 "N. "）、
+    段首段落。续行按解析器同样的规则并进上一条，这样两边可比。"""
+    out, started = [], False
+    for line in re.sub(r"(?m)^\[← 回总目录\]\([^)]*\)\s*$", "", md).split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("## "):
+            out.append(line[3:]); started = False
+        elif line.startswith("# "):
+            out.append(line[2:]); started = False
+        else:
+            m = re.match(r"^\d+\.\s+(.*)$", line)
+            if m:
+                out.append(m.group(1)); started = True
+            elif started and out:
+                out[-1] += " " + line
+            else:
+                out.append(line); started = False
+    return out
 
 
 def main():
@@ -163,6 +203,7 @@ def main():
             if "'" in href or "+" in href or "${" in href:  # 脚本里拼出来的字符串，不是真链接
                 continue
             target = href.split("#")[0].split("?")[0]
+            target = unquote(target)  # 中文 URL（自动收录的长文）在页面里是百分号编码的
             if not target:
                 continue
             tpath = os.path.normpath(os.path.join(os.path.dirname(p), target))
@@ -290,6 +331,52 @@ def main():
                 errors.append("内联 JS 有语法错误：%s" % bad)
             else:
                 info.append("内联 JS 语法检查通过（%d 段，node --check）" % len(inline))
+
+    # 6d. 场景页保真：那几篇长文的字**全部来自上游 docs/*.md**，我们只重排版 + 把「见第 X 节第 Y 条」
+    #     变成链接 + 剥掉 "N. " 序号（改由 <ol> 重新编号）+ 去掉一句「← 回总目录」的导航链接。
+    #     为什么要这道：条目有 check_verbatim 逐字段比，场景页此前只比了"页数对不对" ——
+    #     上游改一篇长文里的句子、我们少取/多取/串行，都不会有人发现。
+    #     怎么找源文件：每篇场景页自己在正文里写着来源（<code>docs/xxx.md</code>），照它比，不猜。
+    scene_names = []
+    sdir = os.path.join(root, "scenes")
+    if os.path.isdir(sdir):
+        scene_names = [n for n in sorted(os.listdir(sdir)) if n.endswith(".html") and n != "index.html"]
+    if scene_names:
+        up = hltb.default_root(ROOT) if hltb is not None else None
+        if up and os.path.isdir(os.path.join(up, "docs")):
+            segs, bad_seg = 0, []
+            for name in scene_names:
+                with open(os.path.join(sdir, name), encoding="utf-8") as fh:
+                    doc = fh.read()
+                m = re.search(r"<code>(docs/[^<]+\.md)</code>", doc)
+                if not m:
+                    errors.append("场景页 %s 没写来源文件，无法比对" % name)
+                    continue
+                src_rel = m.group(1)
+                src_path = os.path.join(up, src_rel)
+                if not os.path.exists(src_path):
+                    errors.append("场景页 %s 声称来自 %s，上游没有这个文件" % (name, src_rel))
+                    continue
+                with open(src_path, encoding="utf-8") as fh:
+                    chunks = scene_chunks(fh.read())
+                ptext, pos = norm_doc(scene_page_text(doc)), 0
+                for ch in chunks:
+                    key = norm_doc(ch)
+                    if not key:
+                        continue
+                    segs += 1
+                    at = ptext.find(key, pos)
+                    if at < 0:
+                        bad_seg.append("%s：「%s」" % (name, ch[:34]))
+                    else:
+                        pos = at
+            if bad_seg:
+                errors.append("场景页与上游原文对不上（少句/串行/改写）：%d 处，例如 %s"
+                              % (len(bad_seg), bad_seg[:5]))
+            else:
+                info.append("场景页保真：%d 篇 / 逐句比对 %d 段 / 缺失 0 段" % (len(scene_names), segs))
+        else:
+            warnings.append("没读到上游 docs/，场景页保真这轮跳过")
 
     # ---------------- 报告
     for line in info:

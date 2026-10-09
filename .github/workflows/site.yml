@@ -11,9 +11,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tools/build_site.py'
-      - 'tools/check_site.py'
-      - 'tools/lib/**'
+      - 'tools/**' # 任何工具改动都重建一次：这次就踩过"改了工具但站点没重建"的坑
       - 'src/**'
       - 'deploy/build.sh'
       - 'deploy/scripts/**'
