@@ -42,13 +42,23 @@ RE_BACK_LINK = re.compile(r"^\[← 回总目录\]\([^)]*\)\s*\n")
 RE_H2 = re.compile(r"^##\s+(.+)$", re.M)
 
 # 上游 docs/ 下"按时间排的场景长文"：H2 就是时间段（当天 / 头一周 / 头一个月…）。
-# 只收这份白名单里的，顺序即页面展示顺序；上游哪天新加一篇，这里加一行、给个英文 slug 即可。
-SCENE_SLUGS = {
-    "被裁了之后先做什么": "laid-off",
-    "孩子出生前后要办的事": "having-a-baby",
-    "刚确诊慢性病之后": "new-diagnosis",
-    "换工作、换城市之前": "job-and-city-change",
-}
+# 收哪几篇由 scene_doc_files() 按**结构**判定（不看名单），这里只定**展示顺序**。改前几条时
+# 顺手把这里当白名单用过 —— 现在不是白名单了，加了新文件它自己会进来，不在名单里的排在后面。
+#
+# 场景页的文件名 = **上游 docs/ 里的文件名**（中文）→ URL 就是 /scenes/被裁了之后先做什么.html
+# （链接/canonical/sitemap 里一律百分号编码）。
+#
+# 为什么不再手工起英文名：上游以后新写同类长文要能**自动上站**，而起名这件事没法自动。
+# 2026-10-09 把最开始那 4 篇从英文 slug（laid-off / having-a-baby / new-diagnosis /
+# job-and-city-change）统一成中文：当时站点上线才一天、sitemap 没提交过、仓库与公众号
+# 都没有引用过它们，换 URL 的代价是 0；再晚就得长期维护"新旧两套风格"。
+# ⚠️ 以后若真要重命名某个文件，等于换 URL，得先想清楚已收录/已分享的链接。
+SCENE_ORDER = (
+    "被裁了之后先做什么",
+    "孩子出生前后要办的事",
+    "刚确诊慢性病之后",
+    "换工作、换城市之前",
+)
 
 # 「按场景看」收不收一篇，不看人写的名单，看它的**结构**：
 #   有 ≥2 个 H2 时间段 + ≥20 处「见第 X 节第 Y 条」指路 + 没有任何 bullet + 篇幅不巨大。
@@ -267,8 +277,8 @@ def split_paras(text):
 def scene_doc_files(root):
     """扫 docs/*.md，按结构挑出「时间轴长文」→ [(文件名, key, slug, url)]。
 
-    新文章自动收录：slug 直接用中文文件名（零依赖、百度认中文 URL），URL 走百分号编码。
-    已收录的那 4 篇继续用英文 slug —— 换 slug 等于换 URL，会把已收录、已分享的链接丢掉。
+    新文章自动收录：文件名 = 上游文件名（中文），URL 走百分号编码。收哪几篇由结构决定，
+    顺序由 SCENE_ORDER 决定（不在名单里的按文件名排在后面）。
     """
     docs_dir = os.path.join(str(root), "docs")
     out = []
@@ -288,9 +298,9 @@ def scene_doc_files(root):
         refs = len(RE_XREF_FAR.findall(text)) + len(RE_XREF_NEAR.findall(text))
         if refs < SCENE_MIN_REFS:
             continue
-        slug = SCENE_SLUGS.get(base, base)
+        slug = base  # 文件名 = 上游文件名（中文），URL 编码后使用
         out.append((name, base, slug, quote(slug)))
-    order = {k: i for i, k in enumerate(SCENE_SLUGS)}
+    order = {k: i for i, k in enumerate(SCENE_ORDER)}
     out.sort(key=lambda x: order.get(x[1], 99))
     return out
 
