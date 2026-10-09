@@ -45,10 +45,10 @@ def strip_tags(s):
 
 
 def norm_doc(s):
-    """场景页比对的归一化：去掉"渲染必然会变"的三种写法 —— markdown 链接语法、**加粗**、转义星号。
-    比条目那一节更松是应该的：那里是 JSON 比原文（两边同一套写法），这里是页面比原文。"""
+    """场景/长文页比对的归一化：去掉"渲染必然会变"的标记 —— markdown 链接语法、
+    **加粗**、转义星号、以及 <url> 的尖括号（渲染成链接后尖括号就没了）。"""
     s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s or "")
-    s = (s or "").replace("\\*", "*").replace("**", "")
+    s = (s or "").replace("\\*", "*").replace("**", "").replace("<", "").replace(">", "")
     return re.sub(r"\s+", "", s)
 
 
@@ -60,26 +60,25 @@ def scene_page_text(doc):
     return htmlmod.unescape(re.sub(r"<[^>]+>", " ", s))
 
 
-def scene_chunks(md):
-    """上游那篇长文按我们渲染的顺序切成片段：H1 标题、H2 时间段、编号步骤（保留原文、只剥掉 "N. "）、
-    段首段落。续行按解析器同样的规则并进上一条，这样两边可比。"""
-    out, started = [], False
-    for line in re.sub(r"(?m)^\[← 回总目录\]\([^)]*\)\s*$", "", md).split("\n"):
-        line = line.strip()
+def doc_chunks(md):
+    """把上游长文切成"页面上应逐字出现的片段"：标题、段落、列表项、表格单元格。
+
+    覆盖两类形状：按时间排的场景长文（编号步骤）和长文（bullet / 表格）。
+    只剥掉**排版符号**（`#`/`-`/`1.`/表格竖线/竖线分隔行），不碰内容一个字。
+    """
+    out = []
+    for raw in md.split("\n"):
+        line = raw.strip()
         if not line:
             continue
-        if line.startswith("## "):
-            out.append(line[3:]); started = False
-        elif line.startswith("# "):
-            out.append(line[2:]); started = False
-        else:
-            m = re.match(r"^\d+\.\s+(.*)$", line)
-            if m:
-                out.append(m.group(1)); started = True
-            elif started and out:
-                out[-1] += " " + line
-            else:
-                out.append(line); started = False
+        if line.startswith("|"):                       # 表格：逐格比；|---|---| 是排版符号，跳过
+            if re.match(r"^\|[\s:|-]+\|$", line):
+                continue
+            out.extend(c.strip() for c in line.strip("|").split("|") if c.strip())
+            continue
+        if line.startswith("[← 回总目录]"):            # 上游自己的返回链接，页面上没有
+            continue
+        out.append(re.sub(r"^(#{1,6}|[-*]|\d+\.|>)\s+", "", line))
     return out
 
 
@@ -113,18 +112,21 @@ def main():
                 pages.append(os.path.relpath(os.path.join(dp, fn), root))
     pages = sorted(p.replace(os.sep, "/") for p in pages)
 
-    # 1. 页数 = 节页 + 条目页 + 首页/关于/下载/检索 + 场景索引 + 各场景页
-    n_scenes = 0
+    # 1. 页数 = 节页 + 条目页 + 首页/关于/下载/检索 + 场景索引 + 各场景页 + 长文页
+    n_scenes = n_longform = 0
     if hltb is not None:
         try:
             up = os.environ.get("HLTB_UPSTREAM") or hltb.default_root(ROOT)
             n_scenes = len(hltb.parse_docs(up))
+            n_longform = len(hltb.longform_files(up))
         except Exception:
-            n_scenes = 0
-    expect_pages = len(sections) + len(entries) + 4 + ((1 + n_scenes) if n_scenes else 0)
-    info.append("页面 %d 个（期望 %d = %d 节 + %d 条 + 4 个固定页%s）"
+            n_scenes = n_longform = 0
+    expect_pages = (len(sections) + len(entries) + 4
+                    + ((1 + n_scenes) if n_scenes else 0) + n_longform)
+    info.append("页面 %d 个（期望 %d = %d 节 + %d 条 + 4 个固定页%s%s）"
                 % (len(pages), expect_pages, len(sections), len(entries),
-                   " + 场景 %d 页" % (1 + n_scenes) if n_scenes else ""))
+                   " + 场景 %d 页" % (1 + n_scenes) if n_scenes else "",
+                   " + 长文 %d 页" % n_longform if n_longform else ""))
     if not n_scenes:
         warnings.append("没读到上游 docs/，场景页数量这次没有严格校验")
     if len(pages) != expect_pages:
@@ -332,51 +334,54 @@ def main():
             else:
                 info.append("内联 JS 语法检查通过（%d 段，node --check）" % len(inline))
 
-    # 6d. 场景页保真：那几篇长文的字**全部来自上游 docs/*.md**，我们只重排版 + 把「见第 X 节第 Y 条」
-    #     变成链接 + 剥掉 "N. " 序号（改由 <ol> 重新编号）+ 去掉一句「← 回总目录」的导航链接。
+    # 6d. 长文保真：场景页与长文页的字**全部来自上游 docs/*.md**，我们只重排版 + 把「见第 X 节第 Y 条」
+    #     变成链接 + 剥掉排版符号（"N. " 序号、bullet 的 "- "、表格竖线）。
     #     为什么要这道：条目有 check_verbatim 逐字段比，场景页此前只比了"页数对不对" ——
     #     上游改一篇长文里的句子、我们少取/多取/串行，都不会有人发现。
-    #     怎么找源文件：每篇场景页自己在正文里写着来源（<code>docs/xxx.md</code>），照它比，不猜。
-    scene_names = []
-    sdir = os.path.join(root, "scenes")
-    if os.path.isdir(sdir):
-        scene_names = [n for n in sorted(os.listdir(sdir)) if n.endswith(".html") and n != "index.html"]
-    if scene_names:
-        up = hltb.default_root(ROOT) if hltb is not None else None
-        if up and os.path.isdir(os.path.join(up, "docs")):
-            segs, bad_seg = 0, []
-            for name in scene_names:
-                with open(os.path.join(sdir, name), encoding="utf-8") as fh:
-                    doc = fh.read()
-                m = re.search(r"<code>(docs/[^<]+\.md)</code>", doc)
-                if not m:
-                    errors.append("场景页 %s 没写来源文件，无法比对" % name)
+    #     怎么找源文件：每篇长文的正文里有一段**机器可读的来源声明**（HTML 注释，读者看不到；
+    #     页脚那行署名 + 「关于与许可」才是给读者的），照它比对，不猜。
+    up = hltb.default_root(ROOT) if hltb is not None else None
+    for dname, label in (("scenes", "场景页"), ("articles", "长文页")):
+        ddir = os.path.join(root, dname)
+        names = [n for n in sorted(os.listdir(ddir)) if n.endswith(".html") and n != "index.html"] \
+            if os.path.isdir(ddir) else []
+        if not names:
+            continue
+        if not (up and os.path.isdir(os.path.join(up, "docs"))):
+            warnings.append("没读到上游 docs/，%s保真这轮跳过" % label)
+            continue
+        segs, bad_seg = 0, []
+        for name in names:
+            with open(os.path.join(ddir, name), encoding="utf-8") as fh:
+                doc = fh.read()
+            m = re.search(r"<code>(docs/[^<]+\.md)</code>", doc) or \
+                re.search(r"<!--\s*来源：(docs/[^（]+?\.md)", doc)
+            if not m:
+                errors.append("%s %s 没写来源文件，无法比对" % (label, name))
+                continue
+            src_rel = m.group(1)
+            src_path = os.path.join(up, src_rel)
+            if not os.path.exists(src_path):
+                errors.append("%s %s 声称来自 %s，上游没有这个文件" % (label, name, src_rel))
+                continue
+            with open(src_path, encoding="utf-8") as fh:
+                chunks = doc_chunks(fh.read())
+            ptext, pos = norm_doc(scene_page_text(doc)), 0
+            for ch in chunks:
+                key = norm_doc(ch)
+                if not key:
                     continue
-                src_rel = m.group(1)
-                src_path = os.path.join(up, src_rel)
-                if not os.path.exists(src_path):
-                    errors.append("场景页 %s 声称来自 %s，上游没有这个文件" % (name, src_rel))
-                    continue
-                with open(src_path, encoding="utf-8") as fh:
-                    chunks = scene_chunks(fh.read())
-                ptext, pos = norm_doc(scene_page_text(doc)), 0
-                for ch in chunks:
-                    key = norm_doc(ch)
-                    if not key:
-                        continue
-                    segs += 1
-                    at = ptext.find(key, pos)
-                    if at < 0:
-                        bad_seg.append("%s：「%s」" % (name, ch[:34]))
-                    else:
-                        pos = at
-            if bad_seg:
-                errors.append("场景页与上游原文对不上（少句/串行/改写）：%d 处，例如 %s"
-                              % (len(bad_seg), bad_seg[:5]))
-            else:
-                info.append("场景页保真：%d 篇 / 逐句比对 %d 段 / 缺失 0 段" % (len(scene_names), segs))
+                segs += 1
+                at = ptext.find(key, pos)
+                if at < 0:
+                    bad_seg.append("%s：「%s」" % (name, ch[:34]))
+                else:
+                    pos = at
+        if bad_seg:
+            errors.append("%s与上游原文对不上（少句/串行/改写）：%d 处，例如 %s"
+                          % (label, len(bad_seg), bad_seg[:5]))
         else:
-            warnings.append("没读到上游 docs/，场景页保真这轮跳过")
+            info.append("%s保真：%d 篇 / 逐句比对 %d 段 / 缺失 0 段" % (label, len(names), segs))
 
     # 6e. 节页导览保真：导览是按上游原文重排的（切成"组"、组名做小标题、每条一个 chip），
     #     一个字都不许动。重排 = 把原文切开再拼回去，最容易悄悄吃掉标点 ——
@@ -417,6 +422,34 @@ def main():
         errors.append("节页导览与上游原文不一致：%d 节，例如 %s" % (len(intro_bad), intro_bad[:3]))
     elif intro_n:
         info.append("节页导览保真：%d 节逐字一致（分组段已去掉隐藏的列表标点）" % intro_n)
+
+    # 7. 版面规则（规则见 docs/site-design.md；教训：只修个案会让别处不一致 → 规则必须机器盯）
+    #    R1 每页必须声明页面类型：<body class="p-list"> / p-article，只此两档
+    #    R2 面包屑必须是正文容器 <main><div class="container"> 的第一个元素（首页是根，允许没有）
+    #    R3 p-article 必须用 .article/.article-body 包裹正文（否则 44rem 规则落不到它身上）；
+    #       p-list 不许出现 .article-body（否则会意外变窄）
+    layout_bad = []
+    for rel in pages:
+        with open(os.path.join(root, rel), encoding="utf-8") as fh:
+            doc = fh.read()
+        m = re.search(r'<body class="(p-[a-z]+)"', doc)
+        if not m or m.group(1) not in ("p-list", "p-article"):
+            layout_bad.append("%s 没声明页面类型（body class 应为 p-list / p-article）" % rel)
+            continue
+        kind = m.group(1)
+        if rel != "index.html":
+            if '<nav class="breadcrumb">' not in doc:
+                layout_bad.append("%s 缺面包屑" % rel)
+            elif not re.search(r'<main>\s*<div class="container">\s*<nav class="breadcrumb">', doc):
+                layout_bad.append("%s 面包屑不在正文容器的第一个位置" % rel)
+        if kind == "p-article" and not re.search(r'class="article[ "]|class="article-body"', doc):
+            layout_bad.append("%s 声明为长文页，却没有 .article/.article-body 包裹正文" % rel)
+        if kind == "p-list" and 'class="article-body"' in doc:
+            layout_bad.append("%s 声明为列表页，却套了 .article-body（会意外变窄）" % rel)
+    if layout_bad:
+        errors.append("版面规则不统一：%d 页，例如 %s" % (len(layout_bad), layout_bad[:4]))
+    else:
+        info.append("版面规则：%d 页都是 p-list / p-article 两档，面包屑位置统一" % len(pages))
 
     # ---------------- 报告
     for line in info:

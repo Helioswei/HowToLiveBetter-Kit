@@ -27,12 +27,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "23"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "26"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
 TOKENS = """:root {
-  --paper: #faf8f4; --paper-deep: #f1ede4; --paper-soft: #f6f3ec;
+  --paper: #faf8f4; --paper-soft: #f6f3ec;
   --hairline: #e2dccf; --hairline-soft: #ece7db;
   --ink: #26292f; --ink-secondary: #5b6069; --muted: #8b8f97;
   --accent: #b3402f; --accent-strong: #8f2f22; --accent-soft: #f4e5e0;
@@ -48,7 +48,7 @@ STYLE = TOKENS + """
 /* ---- 深色主题：默认跟随系统（不需要 JS），用户选过就用 data-theme 覆盖 ----
    选择器写成 html:not([data-theme="light"]) 是为了让"系统深色 + 用户显式选浅色"也正确。 */
 @media (prefers-color-scheme: dark) {
-  html:not([data-theme="light"]) { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
+  html:not([data-theme="light"]) { --paper: #16181c; --paper-soft: #1e2126;
           --hairline: #2e3238; --hairline-soft: #262a30;
           --ink: #e9e5df; --ink-secondary: #ada79e; --muted: #837d74;
           --accent: #cf6a4f; --accent-strong: #e08567; --accent-soft: #2a1f1a; }
@@ -58,7 +58,7 @@ STYLE = TOKENS + """
   html:not([data-theme="light"]) .article-body a { color: var(--accent-strong); }
   html:not([data-theme="light"]) .b-intro, html:not([data-theme="light"]) .b-lead { background: var(--paper-soft); }
 }
-html[data-theme="dark"] { --paper: #16181c; --paper-deep: #1d2025; --paper-soft: #1e2126;
+html[data-theme="dark"] { --paper: #16181c; --paper-soft: #1e2126;
           --hairline: #2e3238; --hairline-soft: #262a30;
           --ink: #e9e5df; --ink-secondary: #ada79e; --muted: #837d74;
           --accent: #cf6a4f; --accent-strong: #e08567; --accent-soft: #2a1f1a; }
@@ -185,18 +185,25 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
           color: var(--ink); }
 .b-presets button:hover { border-color: var(--accent); color: var(--accent-strong); }
 .b-bar { position: sticky; bottom: 0; display: flex; gap: .7rem; align-items: center; flex-wrap: wrap;
-          margin-top: 1.2rem; padding: .7rem .9rem; background: var(--paper-deep);
+          margin-top: 1.2rem; padding: .7rem .9rem; background: var(--paper-soft);
           border-top: 2px solid var(--accent); font-size: .88rem; }
 .b-bar button { font: inherit; font-size: .85rem; cursor: pointer; padding: .3rem .8rem;
           border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper); }
 .b-bar .b-count { font-weight: 600; }
 .b-bar .b-hint { color: var(--muted); }
-/* ---- 排版美化：阅读感 ---- */
-/* 长文（about / download）直接铺在容器里，限制行宽并居中；
-   但条目页的 .article 本身已经是 780 的居中窄列，内层**不能**再缩一次
-   （缩了会变成 704 左对齐 → 正文中轴 602、页面中轴 640，差 38px 看得出来）。 */
-.article-body { max-width: 44rem; margin-inline: auto; }
-.article .article-body { max-width: none; }
+/* ⚠️ 样式规则见 docs/site-design.md（token、两档列宽、每个组件允许的变体）。
+   改这里之前先改那份规范 —— 历史上每次"哪里不对修哪里"都会让别处不一致。 */
+/* ---- 版面规则（改宽度只改这里的两档，别在别处动）------------------------------------
+   p-list    列表/网格/时间轴页：满宽
+   p-article 长文本页：44rem **居中列**（书页感：左右留白对称，标题与正文同列）
+   → 教训 1：以前让每个页型各自决定宽度，修一处就会让别处不一致 → 现在只有两档。
+   → 教训 2：试过"靠左对齐"（为了和面包屑同一条线），结果是右边空一大片、字还被窄列挤着换行，
+     看着是错版 → 长文就该居中列，外壳（面包屑）自己统一贴左边即可。
+   → check_site §7 断言"每页的 body class 只能是这两个之一"。 */
+.article, .article-body, body.p-article .b-hero, body.p-article .b-note,
+body.p-article .b-tablewrap, body.p-article .b-intro { max-width: 44rem; margin-inline: auto; }
+body.p-article .b-hero h1 { margin-bottom: .5rem; }
+/* 长文页在窄列里排版，但列表/表格仍然不超出这一列 */
 .article-body p { line-height: 1.95; margin: .78rem 0; }
 .article-header h1 { font-family: var(--font-serif); letter-spacing: .01em; }
 .article-meta { color: var(--muted); font-size: .84rem; }
@@ -377,6 +384,19 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
 .b-dl em, .b-dl .b-dl-size { font-style: normal; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
 .b-dl span { display: block; margin-top: .35rem; font-size: .86rem; color: var(--ink-secondary); }
 
+/* 长文页：上游长文里的表格（如"做平台要办哪些证"的三张表）与长文清单 */
+.b-tablewrap { overflow-x: auto; margin: 1.2rem 0; }
+.b-tablewrap table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+.b-tablewrap th, .b-tablewrap td { border: 1px solid var(--hairline); padding: .45rem .6rem;
+  text-align: left; vertical-align: top; }
+.b-tablewrap th { background: var(--paper-soft); font-weight: 600; }
+.b-lf { list-style: none; padding: 0; margin: .6rem 0 0; }
+.b-lf li { border-bottom: 1px solid var(--hairline-soft); }
+.b-lf a { display: block; padding: .65rem .2rem; text-decoration: none; color: inherit; }
+.b-lf a:hover { color: var(--accent-strong); }
+.b-lf b { font-weight: 600; }
+.b-lf span { color: var(--muted); font-size: .84rem; margin-left: .6rem; }
+
 /* 正文小标题的节奏 + 上一/下一条 */
 .article-body h2 { margin: 2rem 0 .6rem; font-size: 1.16rem; }
 .article-body h2:first-child { margin-top: .4rem; }
@@ -394,6 +414,15 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
   .b-prefs { right: .6rem; bottom: .6rem; }
   .b-prefs.lifted { bottom: 4.6rem; }
   .b-prefs-panel { max-width: calc(100vw - 1.2rem); }
+  /* 长文页的表格在窄屏折成卡片：每格用 data-label 标出列名，手机不用横拖看 4 列表 */
+  .b-tablewrap { overflow-x: visible; }
+  .b-tablewrap table, .b-tablewrap tbody, .b-tablewrap tr, .b-tablewrap td { display: block; width: auto; }
+  .b-tablewrap thead { display: none; }
+  .b-tablewrap tr { border: 1px solid var(--hairline); border-radius: var(--radius-md);
+                    padding: .55rem .7rem; margin: 0 0 .6rem; background: var(--paper); }
+  .b-tablewrap td { border: 0; padding: .15rem 0; }
+  .b-tablewrap td::before { content: attr(data-label) "："; color: var(--muted); font-size: .82rem; }
+  .b-tablewrap td:empty { display: none; }
 }
 """
 
@@ -476,7 +505,7 @@ BODY_PREFS = r"""<script>
 </script>"""
 
 
-def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_legal=True):
+def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_legal=True, kind="list"):
     """一个页面。path 是相对站点根的路径（如 "08/18.html"），用来算相对前缀与 canonical。"""
     up = "../" * depth
     canonical = "%s/%s" % (base, path) if not path.endswith("index.html") else \
@@ -509,7 +538,7 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_l
   <link rel="stylesheet" href="{up}style.css?v={STYLE_VERSION}">
 {HEAD_PREFS}
 {ld_block}</head>
-<body data-site="better">
+<body class="p-{kind}" data-site="better">
   <nav class="b-topbar" aria-label="本站导航">
     <div class="container b-topbar-inner">
       <a class="b-brand" href="{up}index.html">{html.escape(hltb.TITLE)}</a>
@@ -563,10 +592,6 @@ def paras(text, sec, titles, on_section=True):
                    for p in hltb.split_paras(text))
 
 
-def sync_line(src):
-    return ("同步自上游 <a href=\"%s/commit/%s\" target=\"_blank\" rel=\"noopener nofollow\">%s</a>（%s）"
-            % (src["repo"], src.get("commit") or "", src.get("commit_short") or "?", (src.get("commit_date") or "")[:10]))
-
 
 DISCLAIMER = ("医学与法律内容仅供一般参考，不构成诊疗意见或法律意见；"
               "个案请咨询执业医师、律师或当地主管部门。")
@@ -606,9 +631,110 @@ def entry_body(b, e, titles):
           {('<div class="b-fl"><b>收益</b>%s</div>' % paras(f['收益'], sec, titles, False)) if f.get('收益') else ''}
           {('<details class="b-more"><summary>来源与备注</summary>%s</details>' % hidden) if hidden else ''}
         </div>
-        <p class="b-perma">{sync_line(b['source'])}　原文出处：<a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">{html.escape(hltb.TITLE)}</a></p>
+        <p class="b-perma">原文出处：<a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">{html.escape(hltb.TITLE)}</a></p>
         <nav class="b-pager">{e['pager']}</nav>
       </article>"""
+
+
+RE_MD_H = re.compile(r"^(#{1,6})\s+(.+)$")
+RE_MD_UL = re.compile(r"^\s*[-*]\s+(.+)$")
+RE_MD_OL = re.compile(r"^\s*\d+\.\s+(.+)$")
+RE_MD_TBL_SEP = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
+
+
+def md_blocks(text):
+    """把上游长文切成块。只认它们**实际用到**的语法：标题 / 段落 / 无序列表 / 有序列表 / 表格
+    （实测这 5 篇没有代码块、图片、引用块）。切块是为了让每个块都能单独排版 + 被保真校验逐块比对。
+    """
+    # 相对链接（如 [核实记录](核实记录/追加-第26节做平台.md)）交给 hltb.inline 处理：
+    # 它优先指回我们自己的那一页，没登记的才指上游原文。
+    text = re.sub(r"(?m)^\[← 回总目录\]\([^)]*\)\s*$", "", text)   # 上游仓库内的返回链接
+    lines = text.replace("\r\n", "\n").split("\n")
+    blocks, i = [], 0
+    while i < len(lines):
+        line = lines[i].rstrip()
+        if not line.strip():
+            i += 1
+            continue
+        m = RE_MD_H.match(line)
+        if m:
+            blocks.append(("h", len(m.group(1)), m.group(2).strip()))
+            i += 1
+            continue
+        if line.strip().startswith("|"):
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                row = lines[i].strip()
+                if not RE_MD_TBL_SEP.match(row):     # 表头下的 |---|---| 是排版符号，不进内容
+                    rows.append([c.strip() for c in row.strip("|").split("|")])
+                i += 1
+            blocks.append(("table", rows))
+            continue
+        m = RE_MD_UL.match(line)
+        if m:
+            items = []
+            while i < len(lines) and RE_MD_UL.match(lines[i].rstrip()):
+                items.append(RE_MD_UL.match(lines[i].rstrip()).group(1).strip())
+                i += 1
+            blocks.append(("ul", items))
+            continue
+        m = RE_MD_OL.match(line)
+        if m:
+            items = []
+            while i < len(lines) and RE_MD_OL.match(lines[i].rstrip()):
+                items.append(RE_MD_OL.match(lines[i].rstrip()).group(1).strip())
+                i += 1
+            blocks.append(("ol", items))
+            continue
+        para = []
+        while i < len(lines) and lines[i].strip() and not RE_MD_H.match(lines[i].rstrip()) \
+                and not RE_MD_UL.match(lines[i]) and not RE_MD_OL.match(lines[i]) \
+                and not lines[i].strip().startswith("|"):
+            para.append(lines[i].strip())
+            i += 1
+        blocks.append(("p", " ".join(para)))
+    return blocks
+
+
+def longform_body(b, doc, titles, longform):
+    """长文页：上游 docs/ 里的清单/长文（不是按时间排的场景）。一个字不改，只重排版式。"""
+    parts = []
+    for blk in doc["blocks"]:
+        kind = blk[0]
+        if kind == "h":
+            lvl, txt = blk[1], blk[2]
+            if lvl == 1:                          # 文里的 H1 已经用作页面标题了
+                continue
+            parts.append("<h%d>%s</h%d>" % (3 if lvl >= 3 else 2, hltb.inline(txt, 0, titles), 3 if lvl >= 3 else 2))
+        elif kind == "p":
+            parts.append("<p>%s</p>" % hltb.inline(blk[1], 0, titles))
+        elif kind in ("ul", "ol"):
+            tag = "ul" if kind == "ul" else "ol"
+            parts.append("<%s>%s</%s>" % (tag, "".join("<li>%s</li>" % hltb.inline(x, 0, titles) for x in blk[1]), tag))
+        elif kind == "table":
+            rows = blk[1]
+            if not rows:
+                continue
+            heads = rows[0]
+            head = "".join("<th>%s</th>" % hltb.inline(c, 0, titles) for c in heads)
+            # 每格带 data-label=列名：窄屏下 CSS 把表格折成卡片（手机不用横拖）
+            body = "".join("<tr>%s</tr>" % "".join(
+                '<td data-label="%s">%s</td>' % (html.escape(heads[i] if i < len(heads) else ""),
+                                                 hltb.inline(c, 0, titles))
+                for i, c in enumerate(r)) for r in rows[1:])
+            parts.append('<div class="b-tablewrap"><table><thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>'
+                         % (head, body))
+    others = "".join('<li><a href="%s.html">%s</a></li>' % (d["url"], html.escape(d["title"]))
+                     for d in longform if d["base"] != doc["base"])
+    return f"""      <nav class="breadcrumb"><a href="../index.html">目录</a> <span class="sep">›</span> <a href="../scenes/">按场景看</a> <span class="sep">›</span> <span class="cur">{html.escape(doc['title'][:14])}</span></nav>
+      <div class="b-hero">
+        <h1>{html.escape(doc['title'])}</h1>
+      </div>
+      <div class="article-body">
+{chr(10).join('        ' + x for x in parts)}
+      </div>
+      <!-- 来源：{html.escape(doc['file'])}（机器可读的来源声明：保真校验照它比对；读者要核对走页脚的「署名与许可」） -->
+      <p class="b-stat"><a href="../scenes/">← 返回按场景看</a></p>"""
 
 
 def intro_html(intro, sec, titles, ratios):
@@ -684,23 +810,29 @@ def section_body(b, sec, titles):
       <div class="b-intro">
         {intro_html(sec['intro'], sec['num'], titles, ratios)}
       </div>
-      <p class="b-stat">{len(sec['entries'])} 条，按性价比从高到低　·　{sync_line(b['source'])}</p>
+      <p class="b-stat">{len(sec['entries'])} 条，按性价比从高到低</p>
 {chr(10).join(items)}
       <nav class="b-pager">{pager}</nav>"""
 
 
-def scenes_index_body(b, scenes):
+def scenes_index_body(b, scenes, longform=()):
+    # 场景页与长文页用**同一种卡片**，一个网格里排下来；卡片上那句"5 个时间段 · 34 步"
+    # 是内容自身的描述，不是我们的分类规则（分类规则不该出现在页面上）。
     cards = "".join(
         '<a class="b-scene-card" href="%s.html"><b>%s</b><span>%d 个时间段 · %d 步</span></a>'
         % (sc["url"], html.escape(sc["title"]), len(sc["sections"]),
            sum(len(x["steps"]) for x in sc["sections"]))
         for sc in scenes)
+    cards += "".join(
+        '<a class="b-scene-card" href="../articles/%s.html"><b>%s</b><span>%d 个部分</span></a>'
+        % (d["url"], html.escape(d["title"]),
+           sum(1 for x in d["blocks"] if x[0] == "h" and x[1] == 2))
+        for d in longform)
     return f"""      <nav class="breadcrumb"><a href="../index.html">目录</a> <span class="sep">›</span> <span class="cur">按场景看</span></nav>
       <div class="b-hero">
         <h1>按场景看</h1>
-        <p>不知道从哪下手的时候，从"我正在经历什么"进：<strong>每一篇都是按时间排的</strong>
-           （当天 → 头一周 → 头一个月），每一步都链到书里对应的条目。</p>
-        <p class="b-stat">内容是《{html.escape(hltb.TITLE)}》原文里已有的长文，未改动，只是把指路变成了可点的链接。</p>
+        <p>不知道从哪下手的时候，从"我正在经历什么"进。这些都是《{html.escape(hltb.TITLE)}》原文里已有的内容，
+           <strong>未改动</strong>，只是把它们里的「见第 X 节第 Y 条」变成了可以点的链接。</p>
       </div>
       <div class="b-scenes">{cards}</div>"""
 
@@ -732,12 +864,11 @@ def scene_body(b, scene, scenes, titles):
         <h1>{html.escape(scene['title'])}</h1>
         {paras(scene['intro'], 0, titles)}
         <p class="b-stat">按时间排 · 共 {len(scene['sections'])} 个时间段 {sum(len(x['steps']) for x in scene['sections'])} 步
-           　·　每步都链到书里对应的条目　·　{sync_line(b['source'])}</p>
+           　·　每步都链到书里对应的条目</p>
       </div>
       <div class="b-tl">{''.join(steps_html)}</div>
       <div class="b-refs"><h2>这一篇引用了这些条目（{len(refs)} 条）</h2><ul>{chips}</ul></div>
-      <p class="b-note">本篇正文来自上游 <code>{html.escape(scene['file'])}</code>（未作改动），
-         只把文中的「见第 X 节第 Y 条」变成了可以点的链接。</p>
+      <!-- 来源：{html.escape(scene['file'])}（机器可读的来源声明：保真校验照它比对；读者要核对走页脚的「署名与许可」） -->
       <nav class="b-pager">{pager}</nav>"""
 
 
@@ -769,7 +900,6 @@ def index_body(b):
         </div>
         <p class="b-meta">
           <span>共 {len(b['sections'])} 节 {total} 条</span>
-          <span>{sync_line(b['source'])}</span>
         </p>
       </div>
       {scene_cards}
@@ -780,7 +910,9 @@ def index_body(b):
 def about_body(b):
     src = b["source"]
     return f"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">关于与许可</span></nav>
-      <div class="b-hero narrow"><h1>关于本站与许可</h1></div>
+      <div class="b-hero">
+        <h1>关于本站与许可</h1>
+      </div>
       <div class="article-body">
         <h2>这是转载</h2>
         <p>本站正文全部来自 <a href="{src['repo']}" target="_blank" rel="noopener nofollow">eternity4719/HowToLiveBetter</a>
@@ -815,7 +947,8 @@ def download_body(b):
         return ('<li><a href="%s"><b>%s</b><em class="b-dl-size" data-file="%s"></em>'
                 '<span>%s</span></a></li>' % (url, name, f, why))
     return f"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">下载</span></nav>
-      <div class="b-hero narrow"><h1>下载电子版</h1>
+      <div class="b-hero">
+        <h1>下载电子版</h1>
         <p class="b-stat">下面几份由上游在正文更新后自动重新生成，本站做了国内镜像（打开更快）。
            对应上游版本 <code>{src.get('commit_short') or '?'}</code>（{src.get('commit_date') or ''}）。</p></div>
       <div class="article-body">
@@ -1137,11 +1270,24 @@ def main():
 
     top_count = sum(1 for e in entries if e["ratio"] == "极高")
 
+    # 长文页（上游 docs/ 里非时间轴的长文/清单：应急装备清单、结婚划不划算、办证、生物钟与夜班…）
+    # 正文一个字不改，只换版式（H2 分组 + 段落 + 列表 + 表格）。
+    longform = []
+    for _name, _base, _url in hltb.longform_files(a.upstream):
+        _blocks = md_blocks(hltb.read_text(a.upstream, "docs/" + _name))
+        _h1 = next((b[2] for b in _blocks if b[0] == "h" and b[1] == 1), _base)
+        longform.append({"name": _name, "base": _base, "url": _url, "title": _h1,
+                         "file": "docs/" + _name, "blocks": _blocks})
+
+    # 上游正文里"见 docs/xxx.md"这类互相指路 → 优先指回我们自己的页面（没登记的才去 GitHub）
+    hltb.set_docmap({**{sc["key"]: "../scenes/%s.html" % sc["url"] for sc in scenes},
+                     **{d["base"]: "../articles/%s.html" % d["url"] for d in longform}})
+
     # 场景页（上游 docs/ 里按时间排的四篇：被裁/生孩子/确诊慢病/换工作换城市）
     if scenes:
         write("scenes/index.html", page("按场景看 - %s" % hltb.TITLE,
                                         "按时间排的清单：%s。" % "、".join(sc["title"] for sc in scenes[:6]),
-                                        scenes_index_body({"source": src}, scenes), base, "scenes/index.html",
+                                        scenes_index_body({"source": src}, scenes, longform), base, "scenes/index.html",
                                         ld={"@context": "https://schema.org", "@type": "CollectionPage",
                                             "name": "按场景看", "inLanguage": "zh-CN", "url": base + "/scenes/"},
                                         depth=1),
@@ -1159,11 +1305,25 @@ def main():
                            "url": "%s/scenes/%s.html" % (base, sc["url"])}, depth=1),
                   sc["title"], "按时间排的清单", 0.7)
 
+    for d in longform:
+        write("articles/%s.html" % d["base"],
+              page("%s - %s" % (d["title"], hltb.TITLE),
+                   "%s（上游长文，未作改动）" % d["title"][:60],
+                   longform_body({"source": src}, d, titles, longform), base,
+                   "articles/%s.html" % d["base"],
+                   ld={"@context": "https://schema.org", "@type": "Article",
+                       "headline": d["title"], "inLanguage": "zh-CN",
+                       "isBasedOn": "%s/blob/main/%s" % (src["repo"], d["file"]),
+                       "author": {"@type": "Person", "name": src["author"]},
+                       "license": src["license_url"],
+                       "url": "%s/articles/%s.html" % (base, d["url"])}, depth=1, kind="article"),
+              d["title"], "上游长文", 0.6)
+
     # 首页
     write("index.html", page("%s · 按性价比排序的 %d 条建议" % (hltb.TITLE, len(entries)),
                              "%d 条按性价比排序的循证建议，每条写明成本、收益、证据等级和原始出处。国内可访问的在线阅读版，每条一个链接。" % len(entries),
                              index_body({"sections": data["sections"], "entries": entries, "source": src,
-                                         "scenes": scenes}),
+                                         "scenes": scenes, "longform": longform}),
                              base, "index.html", ld={
                                  "@context": "https://schema.org", "@type": "Book",
                                  "name": hltb.TITLE, "author": {"@type": "Person", "name": src["author"]},
@@ -1198,7 +1358,7 @@ def main():
                            "isPartOf": {"@type": "Book", "name": hltb.TITLE, "url": base + "/"},
                            "isBasedOn": src["repo"], "license": src["license_url"],
                            "author": {"@type": "Person", "name": src["author"]},
-                           "url": "%s/%02d/%02d.html" % (base, s["num"], e["num"])}, depth=1),
+                           "url": "%s/%02d/%02d.html" % (base, s["num"], e["num"])}, depth=1, kind="article"),
                   e["title"], e["fields"].get("说人话") or e["title"], 0.7)
 
     write("about.html", page("关于与许可 - %s" % hltb.TITLE,
@@ -1206,14 +1366,14 @@ def main():
                              about_body({"source": src}), base, "about.html",
                              ld={"@context": "https://schema.org", "@type": "WebPage",
                                  "name": "关于与许可", "inLanguage": "zh-CN", "url": base + "/about.html"},
-                             depth=0, with_legal=False),  # 这一页自己写了完整的免责，不必在页脚再重复一句
+                             depth=0, with_legal=False, kind="article"),  # 这一页自己写了完整的免责，不必在页脚再重复一句
           "关于与许可", "转载说明与许可", 0.5)
     write("download.html", page("下载电子版 - %s" % hltb.TITLE,
                                 "EPUB / PDF / 离线单文件 HTML / Anki 牌组的国内镜像下载。",
                                 download_body({"source": src}), base, "download.html",
                                 ld={"@context": "https://schema.org", "@type": "CollectionPage",
                                     "name": "下载电子版", "inLanguage": "zh-CN", "url": base + "/download.html"},
-                                depth=0),
+                                depth=0, kind="article"),
           "下载", "电子版下载", 0.5)
     write("search.html", page("全文检索 - %s" % hltb.TITLE,
                               "按关键词、成本、证据等级、口径筛选 %d 条建议。" % len(entries),

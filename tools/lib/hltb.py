@@ -35,6 +35,19 @@ RE_README_ROW = re.compile(r"^\|\s*(.+?)\s*\|\s*\[(\d+)\.\s*([^\]]+)\]\([^)]*\)\
 # 正文里的互相指路：「见第 8 节第 17 条」「见本节第 3 条」
 RE_XREF_FAR = re.compile(r"见第\s*(\d+)\s*节第\s*(\d+)\s*条")
 RE_XREF_NEAR = re.compile(r"见本节第\s*(\d+)\s*条")
+# 指向上游文件本身的相对链接，如 [docs/生物钟和夜班.md](../docs/生物钟和夜班.md)
+RE_MD_LINK = re.compile(r"\[([^\]]{1,60})\]\(([^)\s]{1,120})\)")
+
+# 上游正文里会互相指路（"见 docs/生物钟和夜班.md"）。这些文档我们自己也有页面，
+# 所以由站点生成器登记一张映射表，inline() 把这种链接指回**我们自己的那一页**
+# （指到 GitHub 读者在墙内根本打不开）。没登记的（如 docs/核实记录/…）才退回升 GitHub。
+_DOCMAP = {}
+
+
+def set_docmap(mapping):
+    """登记 {上游文档名: 我们页面的相对 URL}。build_site 启动时调一次。"""
+    global _DOCMAP
+    _DOCMAP = dict(mapping or {})
 # 同节条号：书里写作「（第 N 条）」，节首导览里就是它的目录写法
 RE_SAME_REF = re.compile(r"（第\s*(\d+)\s*条）")
 # 上游每节开头的返回链接，我们自己的壳负责导航
@@ -69,6 +82,13 @@ SCENE_ORDER = (
 SCENE_MIN_SECTIONS = 2
 SCENE_MIN_REFS = 20
 SCENE_MAX_CHARS = 30000
+
+# docs/ 里还有一类**长文/清单型**（有 H2 分组、正文是段落 + bullet + 表格，不是按时间排的步骤）：
+# 家庭应急装备清单、结婚划不划算、做平台要办哪些证、生物钟和夜班、遇到陌生人出事该不该停。
+# 它们上站的价值一样（都是上游正文、都该能被搜到），只是版式不同 → 用「长文页」渲染。
+# 太长的（如 11.4 万字的《引用对照》，它是"条目→出处"的核对表）这轮不上：单页过大，
+# 而且它是核对记录，不是给读者读的长文。以后想上就单独做"引用总表"页。
+LONGFORM_MAX_CHARS = 20000
 
 
 class ParseError(RuntimeError):
@@ -262,9 +282,21 @@ def inline(text, sec, entry_titles, on_section=True):
     s = RE_XREF_NEAR.sub(near, s)
     s = RE_XREF_FAR.sub(far, s)
     s = RE_SAME_REF.sub(same, s)
-    s = re.sub(r"\[([^\]]{1,40})\]\((https?://[^)\s]+)\)",
-               r'<a href="\2" target="_blank" rel="noopener nofollow">\1</a>', s)
-    return s
+
+    def mdlink(m):
+        """[文字](目标)：http 的照旧；相对路径的优先指回我们自己的那一页，否则指上游原文。
+        （上游正文里大量引用同书的其它长文，这些链接以前会以原始 markdown 形式漏在页面上。）
+        注意 text 取自已经 html.escape 过的串，别再转义一次。"""
+        text, target = m.group(1), m.group(2)
+        if target.startswith(("http://", "https://")):
+            return '<a href="%s" target="_blank" rel="noopener nofollow">%s</a>' % (target, text)
+        name = re.sub(r"^(\.\./)*docs/", "", target).replace(".md", "")
+        if name in _DOCMAP:
+            return '<a href="%s">%s</a>' % (_DOCMAP[name], text)
+        return ('<a href="%s/blob/main/docs/%s" target="_blank" rel="noopener nofollow">%s</a>'
+                % (REPO, target, text))
+
+    return RE_MD_LINK.sub(mdlink, s)
 
 
 def split_paras(text):
@@ -302,6 +334,30 @@ def scene_doc_files(root):
         out.append((name, base, slug, quote(slug)))
     order = {k: i for i, k in enumerate(SCENE_ORDER)}
     out.sort(key=lambda x: order.get(x[1], 99))
+    return out
+
+
+def longform_files(root):
+    """docs/ 下的「长文页」：不是时间轴型、篇幅也没大到不适合单页的那些 → [(文件名, key, url)]。
+
+    判定与 scene_doc_files 互补：能被时间轴判据收走的就不在这里，
+    所以两边的名单永远不重叠（加一篇上游长文时，只会落到其中一边）。
+    """
+    docs_dir = os.path.join(str(root), "docs")
+    out = []
+    if not os.path.isdir(docs_dir):
+        return out
+    timeline = {base for _n, base, _s, _u in scene_doc_files(root)}
+    for name in sorted(os.listdir(docs_dir)):
+        if not name.endswith(".md"):
+            continue
+        base = name[:-3]
+        if base in timeline:
+            continue
+        text = read_text(root, "docs/" + name)
+        if len(text) > LONGFORM_MAX_CHARS or len(text) < 200:
+            continue
+        out.append((name, base, quote(base)))
     return out
 
 
