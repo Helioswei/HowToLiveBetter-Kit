@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "7"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "10"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -96,7 +96,9 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
 .b-topbar-inner { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; padding: .65rem 0; }
 .b-brand { font-weight: 700; text-decoration: none; color: var(--ink); font-family: var(--font-serif); }
 .b-tag { font-size: .78rem; color: var(--muted); }
-.b-links { margin-left: auto; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .9rem; }
+.b-links { margin-left: auto; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .95rem; }
+.b-links a { color: var(--ink); text-decoration: none; }
+.b-links a:hover { color: var(--accent-strong); }
 .b-hero { padding: 1.4rem 0 0.6rem; }
 .b-hero h1 { font-family: var(--font-serif); font-size: 1.9rem; margin: 0 0 .4rem; }
 .b-hero p { color: var(--ink-secondary); margin: .3rem 0; }
@@ -116,10 +118,11 @@ a, code, p, li, h1, h2, h3 { overflow-wrap: anywhere; }  /* 长 URL 不许撑破
 .b-entry h3 { font-size: 1.06rem; margin: 0 0 .35rem; line-height: 1.6; }
 .b-badges { display: flex; gap: .32rem; flex-wrap: wrap; margin: .1rem 0 .5rem; }
 .b-badge { font-size: .72rem; padding: .08rem .45rem; border-radius: 999px;
-           border: 1px solid var(--hairline); color: var(--ink-secondary); background: var(--paper-soft); }
-.b-badge.lv { color: #1f7a4d; border-color: currentColor; }
-.b-badge.ku { color: var(--accent); border-color: currentColor; }
-.b-badge.top { color: var(--accent-strong); border-color: currentColor; font-weight: 600; }
+           border: 1px solid var(--hairline-soft); color: var(--muted); background: transparent; }
+/* 标签只留一个强调：性价比。其它（钱/时间/毅力/收益/证据/口径）一律灰阶 —— 密集列表里
+   红绿灰三色混在一起是噪音，读者要的是"哪几条值得做"，不是分辨颜色。 */
+.b-badge.top { color: var(--accent-strong); border-color: var(--accent);
+               background: var(--accent-soft); font-weight: 600; }
 .b-human { margin: .3rem 0; font-weight: 600; }
 .b-cost { font-size: .9rem; color: var(--ink-secondary); margin: .25rem 0; }
 .b-entry details { margin: .45rem 0 .2rem; }
@@ -226,9 +229,121 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
 .b-scene-card b { display: block; margin-bottom: .3rem; }
 .b-scene-card span { font-size: .84rem; color: var(--muted); }
 .b-hit h3 { font-size: 1rem; margin: 0 0 .3rem; }
+/* ================= 第二轮：控件 / 列表 / 卡片 ================= */
+
+/* 阅读设置条：它以前被插到 <html> 下、横在页面顶部当裸条；现在归到正文容器末尾 */
+.b-prefs { margin: 1.4rem 0 0; padding: .7rem .9rem; }
+.b-prefs label { gap: .35rem; }
+.b-prefs select { appearance: none; -webkit-appearance: none; padding: .22rem 1.5rem .22rem .5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b8478' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right .45rem center; }
+.b-prefs select:hover, .b-prefs button:hover { border-color: var(--accent); color: var(--accent-strong); }
+.b-prefs button { border-radius: 999px; padding: .22rem .8rem; }
+
+/* CTA：按钮，而不是一串点号分隔的链接 */
+.b-cta { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.1rem 0 .2rem; }
+.b-btn { display: inline-block; padding: .45rem .95rem; border: 1px solid var(--hairline);
+  border-radius: 999px; background: var(--paper); color: var(--ink); text-decoration: none;
+  font-size: .92rem; line-height: 1.6; }
+.b-btn:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--paper-soft); }
+.b-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.b-btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+.b-lede { font-size: .99rem; color: var(--ink-secondary); }
+.b-meta { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: .9rem 0 0; padding: .6rem 0 0;
+  border-top: 1px solid var(--hairline-soft); font-size: .84rem; color: var(--ink-secondary); }
+.b-meta a { color: var(--ink-secondary); }
+.b-h2 { font-size: 1.05rem; margin: 1.8rem 0 .2rem; }
+
+/* 首页 34 节列表：不再是"表格感"的三列，而是能扫的行 */
+.b-secs { list-style: none; padding: 0; margin: 1.2rem 0 0; border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg); overflow: hidden; background: var(--paper); }
+.b-secs li + li { border-top: 1px solid var(--hairline-soft); }
+.b-secs a { display: grid; grid-template-columns: 2.4rem 1fr auto; align-items: baseline;
+  gap: .2rem .9rem; padding: .7rem .9rem; text-decoration: none; color: inherit; }
+.b-secs a:hover { background: var(--paper-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.b-sn { grid-column: 1; grid-row: 1 / span 2; align-self: center; font-variant-numeric: tabular-nums;
+  font-size: .85rem; color: var(--muted); }
+.b-st { grid-column: 2; grid-row: 1; font-weight: 600; font-size: 1.02rem; }
+.b-sc { grid-column: 3; grid-row: 1; font-size: .78rem; color: var(--muted); white-space: nowrap;
+  border: 1px solid var(--hairline-soft); border-radius: 999px; padding: 0 .45rem; }
+.b-sq { grid-column: 2 / -1; grid-row: 2; font-size: .88rem; color: var(--ink-secondary); }
+
+/* 场景卡：有边界、有反馈、元数据不散 */
+.b-scenes { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .7rem; }
+.b-scene-card { padding: 1rem 1.1rem; background: var(--paper); border-color: var(--hairline);
+  box-shadow: 0 1px 3px rgba(0,0,0,.05); transition: box-shadow .15s, border-color .15s; }
+.b-scene-card:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.09); }
+.b-scene-card b { font-family: var(--font-serif); font-size: 1.05rem; margin-bottom: .35rem; }
+.b-scene-card span { font-size: .8rem; color: var(--muted); }
+
+/* 检索页：筛选合成一块面板，不再碎成一堆小框 */
+.b-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: .1rem 1.6rem; margin: 1.2rem 0 .8rem; padding: .9rem 1.1rem 1.1rem;
+  border: 1px solid var(--hairline); border-radius: var(--radius-lg); background: var(--paper-soft); }
+.b-filters fieldset { border: 0; padding: .5rem 0; margin: 0; min-width: 0; }
+.b-filters legend { font-size: .74rem; letter-spacing: .06em; color: var(--muted); padding: 0 0 .15rem; }
+.b-filters label { display: inline-flex; align-items: center; gap: .25rem; margin: 0 .7rem .2rem 0;
+  font-size: .88rem; }
+.b-filters input[type="search"] { font: inherit; font-size: .9rem; padding: .3rem .5rem;
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink); }
+.b-presets { display: flex; flex-wrap: wrap; gap: .4rem; margin: .8rem 0 0; }
+.b-presets button { font: inherit; font-size: .86rem; cursor: pointer; padding: .3rem .8rem;
+  border: 1px solid var(--hairline); border-radius: 999px; background: var(--paper); color: var(--ink); }
+.b-presets button:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--paper-soft); }
+
+/* 检索结果：卡片化；勾选就在标题行右侧；标签降色，只留性价比一个强调 */
+#hits { padding-bottom: 1rem; }
+.b-hit { padding: 1rem 1.1rem; margin: 0 0 .6rem; border: 1px solid var(--hairline);
+  border-radius: var(--radius-md); background: var(--paper); }
+.b-hit:hover { background: var(--paper-soft); }
+.b-hit.picked { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.b-hit-head { display: flex; align-items: flex-start; gap: .8rem; }
+.b-hit-head h3 { flex: 1; margin: 0; }
+.b-pick { display: inline-flex; align-items: center; gap: .3rem; flex: none; cursor: pointer;
+  font-size: .82rem; color: var(--ink-secondary); border: 1px solid var(--hairline);
+  border-radius: 999px; padding: .15rem .6rem; background: var(--paper); }
+.b-pick:hover { border-color: var(--accent); color: var(--accent-strong); }
+.b-hit.picked .b-pick { background: var(--accent); border-color: var(--accent); color: #fff; }
+.b-hit p { margin: .4rem 0 0; font-size: .92rem; color: var(--ink-secondary); line-height: 1.8; }
+.b-hit .b-badges { margin: .45rem 0 .1rem; }
+
+/* 底部操作条：有层次、有禁用态 */
+.b-bar { position: sticky; bottom: .6rem; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+  margin: 1rem 0 0; padding: .7rem .9rem; border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg); background: var(--paper); box-shadow: 0 -2px 12px rgba(0,0,0,.06); }
+.b-bar button { font: inherit; font-size: .86rem; cursor: pointer; padding: .35rem .85rem;
+  border-radius: 999px; border: 1px solid var(--hairline); background: var(--paper); color: var(--ink); }
+.b-bar button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); }
+.b-bar button:disabled { opacity: .45; cursor: not-allowed; }
+.b-bar .b-count { font-size: .86rem; color: var(--ink-secondary); margin-right: auto; }
+.b-hint { font-size: .8rem; color: var(--accent-strong); }
+
+/* 下载页：四份文件做成卡片 */
+.b-dl { list-style: none; padding: 0; margin: 1rem 0; display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .7rem; }
+.b-dl li { border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 1rem 1.1rem;
+  background: var(--paper); }
+.b-dl li:hover { border-color: var(--accent); background: var(--paper-soft); }
+.b-dl a { font-weight: 600; font-size: 1.02rem; }
+.b-dl span { display: block; margin-top: .3rem; font-size: .86rem; color: var(--muted); }
+
+/* 正文小标题的节奏 + 上一/下一条 */
+.article-body h2 { margin: 2rem 0 .6rem; font-size: 1.16rem; }
+.article-body h2:first-child { margin-top: .4rem; }
+.b-pager { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.8rem 0 0; padding-top: 1rem;
+  border-top: 1px solid var(--hairline); font-size: .9rem; }
+.b-pager a { padding: .3rem .75rem; border: 1px solid var(--hairline); border-radius: 999px;
+  text-decoration: none; }
+.b-pager a:hover { border-color: var(--accent); color: var(--accent-strong); }
+
 @media (max-width: 520px) {
-  .b-secs a { grid-template-columns: 2.2rem 1fr; grid-template-areas: "n t" ". c" ". q"; }
+  .b-secs a { grid-template-columns: 1.9rem 1fr auto; gap: .15rem .6rem; padding: .65rem .7rem; }
   .b-hero h1 { font-size: 1.6rem; }
+  .b-filters { grid-template-columns: 1fr; }
+  .b-bar { justify-content: space-between; }
+  .b-prefs .b-sep { margin-left: 0; }
 }
 """
 
@@ -265,8 +380,8 @@ BODY_PREFS = """<script>
     +sel('b-theme','主题',[['','跟随系统'],['light','浅色'],['dark','深色']])
     +'<button type="button" id="b-speak">朗读</button>'
     +'<span class="b-sep" id="b-say">设置只存在你自己的浏览器里</span>';
-  var anchor=document.querySelector('footer.site-footer')||document.getElementById('site-footer')||document.body;
-  anchor.parentNode.insertBefore(box, anchor);
+  var host=document.querySelector('main .container')||document.querySelector('main')||document.body;
+  host.appendChild(box);
 
   var size=box.querySelector('#b-size'), lead=box.querySelector('#b-leading'), theme=box.querySelector('#b-theme');
   var say=box.querySelector('#b-say');
@@ -532,8 +647,7 @@ def index_body(b):
             % (sc["slug"], html.escape(sc["title"]), len(sc["sections"]),
                sum(len(x["steps"]) for x in sc["sections"]))
             for sc in scenes)
-        scene_cards = ('<h2 style="font-size:1.05rem;margin:1.6rem 0 .2rem">'
-                       '按场景看（不知道从哪下手就从这里进）</h2>'
+        scene_cards = ('<h2 class="b-h2">按场景看（不知道从哪下手就从这里进）</h2>'
                        '<div class="b-scenes">%s</div>'
                        '<p class="b-stat" style="margin-top:.6rem"><a href="scenes/">全部场景 →</a></p>' % cards)
     rows = "".join(
@@ -543,13 +657,22 @@ def index_body(b):
         for s in b["sections"])
     return f"""      <div class="b-hero">
         <h1>{html.escape(hltb.TITLE)}</h1>
-        <p>按性价比排序的 {total} 条建议，来自 <a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">eternity4719/HowToLiveBetter</a>。
+        <p class="b-lede">按性价比排序的 {total} 条建议，来自 <a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">eternity4719/HowToLiveBetter</a>。
            每条写明花掉什么、换回什么、证据有多硬，来源只引期刊论文与官方文件。</p>
-        <p class="b-stat">本站是<strong>原文转载</strong>：正文一个字未改，只重排版式并加了导航、检索与单条链接。
-           共 {len(b['sections'])} 节 {total} 条　·　{sync_line(b['source'])}</p>
-        <p class="b-stat"><a href="search.html#ratio=%E6%9E%81%E9%AB%98">我该做哪几条（{top} 条零成本高收益）</a>　·　<a href="search.html">检索全部 {total} 条</a>　·　<a href="download.html">下载电子版</a>　·　<a href="about.html">关于与许可</a></p>
+        <div class="b-cta">
+          <a class="b-btn primary" href="search.html#ratio=%E6%9E%81%E9%AB%98">我该做哪几条（{top} 条零成本高收益）</a>
+          <a class="b-btn" href="search.html">检索全部 {total} 条</a>
+          <a class="b-btn" href="download.html">下载电子版</a>
+          <a class="b-btn" href="about.html">关于与许可</a>
+        </div>
+        <p class="b-meta">
+          <span><strong>原文转载</strong>：正文一个字未改，只重排版式并加了导航、检索与单条链接</span>
+          <span>共 {len(b['sections'])} 节 {total} 条</span>
+          <span>{sync_line(b['source'])}</span>
+        </p>
       </div>
       {scene_cards}
+      <h2 class="b-h2">全部 {len(b['sections'])} 节</h2>
       <ol class="b-secs">{rows}</ol>
       <p class="b-note">{DISCLAIMER}</p>"""
 
@@ -591,11 +714,11 @@ def download_body(b):
       <div class="b-hero"><h1>下载电子版</h1>
         <p class="b-stat">下面几份由上游在正文更新后自动重新生成，本站做了国内镜像（打开更快）。</p></div>
       <div class="article-body">
-        <ul>
-          <li><a href="download/HowToLiveBetter.epub">EPUB 电子书</a> —— 手机阅读器 / Kindle（Send to Kindle 发过去即可）</li>
-          <li><a href="download/HowToLiveBetter.pdf">PDF</a> —— A4 排版，带目录页码，适合打印</li>
-          <li><a href="download/HowToLiveBetter.html">离线单文件 HTML</a> —— 整本书连同检索都在这一个文件里，双击就开</li>
-          <li><a href="download/HowToLiveBetter.apkg">Anki 牌组</a> —— 一条一张卡，按节分子牌组</li>
+        <ul class="b-dl">
+          <li><a href="download/HowToLiveBetter.epub">EPUB</a><span>手机阅读器 / Kindle：用 Send to Kindle 发过去即可</span></li>
+          <li><a href="download/HowToLiveBetter.pdf">PDF</a><span>A4 排版、带目录页码，适合打印或存档</span></li>
+          <li><a href="download/HowToLiveBetter.html">离线单文件 HTML</a><span>整本书连同检索都在这一个文件里，双击就开，不需要网络</span></li>
+          <li><a href="download/HowToLiveBetter.apkg">Anki 牌组</a><span>一条一张卡，按节分子牌组，适合反复复习</span></li>
         </ul>
         <p>镜像失败时请直接到上游下载：<a href="{b['source']['repo']}/releases" target="_blank" rel="noopener nofollow">上游 Release</a>。</p>
         <h2>许可</h2>
@@ -615,14 +738,16 @@ def search_body(cfg):
     """
     body = r"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">检索与我的清单</span></nav>
       <div class="b-hero"><h1>检索与我的清单</h1>
-        <p class="b-stat">按关键词、成本、证据等级、口径筛这 __TOTAL__ 条；看中的打勾，就成了「我的清单」——
-           勾选只存在你自己的浏览器里，不会上传；要发给别人就复制分享链接。</p>
+        <p class="b-lede">按关键词、成本、证据等级、口径筛这 __TOTAL__ 条；看中的打勾，就成了「我的清单」。</p>
         <div class="b-presets">
           <button type="button" data-preset="top">性价比「极高」（__TOP__ 条）</button>
           <button type="button" data-preset="a">只看证据 A 级</button>
-          <button type="button" data-preset="clear">清空条件</button>
           <button type="button" data-preset="mine">只看我的清单</button>
+          <button type="button" data-preset="clear">清空条件</button>
         </div>
+        <p class="b-meta"><span>改了条件就即时生效，不用点搜索</span>
+          <span>勾选只存在你自己的浏览器里，不会上传</span>
+          <span>要发给别人就复制分享链接</span></p>
       </div>
       <form class="b-filters" id="f">
         <fieldset><legend>关键词</legend><input type="search" id="q" name="q" placeholder="戒烟 / 担保 / 产假" style="width:12rem"></fieldset>
@@ -638,9 +763,9 @@ def search_body(cfg):
       <div id="hits"></div>
       <div class="b-bar" id="bar">
         <span class="b-count" id="mycount">已选 0 条</span>
-        <button type="button" id="share">复制分享链接</button>
-        <button type="button" id="copy">复制清单文本</button>
-        <button type="button" id="reset">清空我的清单</button>
+        <button type="button" id="share" disabled>复制分享链接</button>
+        <button type="button" id="copy" disabled>复制清单文本</button>
+        <button type="button" id="reset" disabled>清空我的清单</button>
         <span class="b-hint" id="say"></span>
       </div>
       <p class="b-note">关键词是字面匹配，不是语义检索。不同口径之间不做比较（书里的规定）；
@@ -668,10 +793,11 @@ def search_body(cfg):
           return Array.prototype.slice.call(form.querySelectorAll('input[name=' + name + ']:checked')).map(function (i) { return i.value; });
         }
         function badges(e) {
-          return '<div class="b-badges"><span class="b-badge top">性价比 ' + e.r + '</span>' +
+          var r = 'b-badge' + (e.r === '极高' ? ' top' : '');
+          return '<div class="b-badges"><span class="' + r + '">性价比 ' + e.r + '</span>' +
                  '<span class="b-badge">收益 ' + e.g.b + '</span>' +
-                 '<span class="b-badge lv">证据 ' + e.v + '</span>' +
-                 '<span class="b-badge ku">' + e.k + '</span></div>';
+                 '<span class="b-badge">证据 ' + e.v + '</span>' +
+                 '<span class="b-badge">' + e.k + '</span></div>';
         }
         function card(e) {
           var k = keyOf(e), on = !!mine[k];
@@ -707,8 +833,7 @@ def search_body(cfg):
           }
           hits.innerHTML = out.map(card).join('') ||
             '<p class="b-stat">' + (mode === 'list' ? '还没选任何条目。在检索里给想做的打勾，或者把别人发你的分享链接打开。' : '没有命中的条目，换个条件试试。') + '</p>';
-          var n = Object.keys(mine).length;
-          mycount.textContent = '已选 ' + n + ' 条';
+          syncBar();
         }
         function setFilter(name, values) {
           form.querySelectorAll('input[name=' + name + ']').forEach(function (i) {
@@ -720,6 +845,13 @@ def search_body(cfg):
           if (location.hash !== h) history.replaceState(null, '', location.pathname + location.search + h);
         }
         function tell(msg) { say.textContent = msg; }
+        function syncBar() {
+          var n = Object.keys(mine).length;
+          mycount.textContent = '已选 ' + n + ' 条';
+          ['share', 'copy', 'reset'].forEach(function (id) {
+            document.getElementById(id).disabled = n === 0;
+          });
+        }
 
         document.addEventListener('change', function (ev) {
           var t = ev.target;
@@ -729,8 +861,7 @@ def search_body(cfg):
             saveMine();
             var box = t.closest('.b-hit');
             if (box) box.classList[ t.checked ? 'add' : 'remove' ]('picked');
-            var n = Object.keys(mine).length;
-            mycount.textContent = '已选 ' + n + ' 条';
+            syncBar();
             tell('');
           } else if (t && t.closest && t.closest('#f')) {
             render();
