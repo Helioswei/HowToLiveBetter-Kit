@@ -13,6 +13,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write # 用来在内容变化后显式叫起站点重建（见最后一节）
 
 concurrency:
   group: sync-upstream
@@ -65,6 +66,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 内容变了就提交指纹
+        id: commit
         if: steps.gate.outputs.skip == '0'
         run: |
           git config user.name "helios"
@@ -77,7 +79,20 @@ jobs:
             git add sync/fingerprint.json
             git commit -m "chore(sync): 同步上游 ${SHA}；${SUMMARY}"
             git push
+            echo "changed=1" >> "$GITHUB_OUTPUT"
           fi
+
+      # ⚠️ 这一节是必须的，别删：上面那次 push 用的是 GITHUB_TOKEN，而 GitHub 规定
+      # “用 GITHUB_TOKEN 触发的事件不会再创建新的 workflow run”（防递归）。
+      # 所以 site.yml 不会因为 fingerprint.json 变了就自己起来 —— 曾经因此卡过：
+      # 同步到了新版、仓库历史也记了，但线上一直是旧的一版，等 06:30 那次定时构建才补上。
+      - name: 内容变了就叫站点重建
+        if: steps.commit.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run site.yml --ref main
+          echo "已叫起站点重建（site.yml）" >> "$GITHUB_STEP_SUMMARY"
 
       - name: 出事就开 issue（格式变了 / 校验不过 / 同步失败）
         if: failure()
