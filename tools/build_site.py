@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib
 import hltb  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STYLE_VERSION = "10"  # 改 style.css 时 +1，避免浏览器缓存旧样式
+STYLE_VERSION = "11"  # 改 style.css 时 +1，避免浏览器缓存旧样式
 
 # ---------------------------------------------------------------- 页面骨架
 
@@ -320,14 +320,16 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
 .b-bar .b-count { font-size: .86rem; color: var(--ink-secondary); margin-right: auto; }
 .b-hint { font-size: .8rem; color: var(--accent-strong); }
 
-/* 下载页：四份文件做成卡片 */
+/* 下载页：四份文件做成卡片（整张卡可点 + 体积由构建时量出来填） */
 .b-dl { list-style: none; padding: 0; margin: 1rem 0; display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .7rem; }
-.b-dl li { border: 1px solid var(--hairline); border-radius: var(--radius-md); padding: 1rem 1.1rem;
-  background: var(--paper); }
-.b-dl li:hover { border-color: var(--accent); background: var(--paper-soft); }
-.b-dl a { font-weight: 600; font-size: 1.02rem; }
-.b-dl span { display: block; margin-top: .3rem; font-size: .86rem; color: var(--muted); }
+.b-dl li { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04); transition: border-color .15s, box-shadow .15s; }
+.b-dl li:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+.b-dl a { display: block; padding: 1rem 1.1rem; text-decoration: none; color: inherit; }
+.b-dl b { font-weight: 600; font-size: 1.02rem; color: var(--accent-strong); }
+.b-dl em, .b-dl .b-dl-size { font-style: normal; font-size: .8rem; color: var(--muted); margin-left: .5rem; }
+.b-dl span { display: block; margin-top: .35rem; font-size: .86rem; color: var(--ink-secondary); }
 
 /* 正文小标题的节奏 + 上一/下一条 */
 .article-body h2 { margin: 2rem 0 .6rem; font-size: 1.16rem; }
@@ -710,16 +712,26 @@ def about_body(b):
 
 
 def download_body(b):
+    src = b["source"]
+    def card(f, name, url, why):
+        return ('<li><a href="%s"><b>%s</b><em class="b-dl-size" data-file="%s"></em>'
+                '<span>%s</span></a></li>' % (url, name, f, why))
     return f"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">下载</span></nav>
       <div class="b-hero"><h1>下载电子版</h1>
-        <p class="b-stat">下面几份由上游在正文更新后自动重新生成，本站做了国内镜像（打开更快）。</p></div>
+        <p class="b-stat">下面几份由上游在正文更新后自动重新生成，本站做了国内镜像（打开更快）。
+           对应上游版本 <code>{src.get('commit_short') or '?'}</code>（{src.get('commit_date') or ''}）。</p></div>
       <div class="article-body">
         <ul class="b-dl">
-          <li><a href="download/HowToLiveBetter.epub">EPUB</a><span>手机阅读器 / Kindle：用 Send to Kindle 发过去即可</span></li>
-          <li><a href="download/HowToLiveBetter.pdf">PDF</a><span>A4 排版、带目录页码，适合打印或存档</span></li>
-          <li><a href="download/HowToLiveBetter.html">离线单文件 HTML</a><span>整本书连同检索都在这一个文件里，双击就开，不需要网络</span></li>
-          <li><a href="download/HowToLiveBetter.apkg">Anki 牌组</a><span>一条一张卡，按节分子牌组，适合反复复习</span></li>
+          {card('HowToLiveBetter.epub', 'EPUB', 'download/HowToLiveBetter.epub',
+                '手机阅读器 / Kindle：用 Send to Kindle 发过去即可')}
+          {card('HowToLiveBetter.pdf', 'PDF', 'download/HowToLiveBetter.pdf',
+                'A4 排版、带目录页码，适合打印或存档')}
+          {card('HowToLiveBetter.html', '离线单文件 HTML', 'download/HowToLiveBetter.html',
+                '整本书连同检索都在一个文件里，下载后用浏览器打开（电脑上双击即可），不需要联网')}
+          {card('HowToLiveBetter.apkg', 'Anki 牌组', 'download/HowToLiveBetter.apkg',
+                '一条一张卡，按节分子牌组，适合反复复习')}
         </ul>
+        <p class="b-stat" data-dl-total></p>
         <p>镜像失败时请直接到上游下载：<a href="{b['source']['repo']}/releases" target="_blank" rel="noopener nofollow">上游 Release</a>。</p>
         <h2>许可</h2>
         <p>这些文件同样是《{html.escape(hltb.TITLE)}》的正文，按 {b['source']['license']} 转载，

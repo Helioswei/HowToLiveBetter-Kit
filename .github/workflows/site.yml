@@ -65,6 +65,9 @@ jobs:
             if [ "$size" -lt 50000 ]; then echo "✗ $f 只有 ${size}B，镜像不像成功"; exit 1; fi
           done
 
+      - name: 把电子版体积写进下载页
+        run: python3 tools/annotate_downloads.py --site build/site
+
       - name: 打包
         run: |
           tar -czf site.tar.gz -C build/site .

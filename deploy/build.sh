@@ -49,4 +49,6 @@ for f in HowToLiveBetter.epub HowToLiveBetter.pdf HowToLiveBetter.html HowToLive
   if [ ! -s "dist/download/$f" ]; then echo "✗ 电子版缺失：$f"; exit 1; fi
 done
 echo "  电子版镜像齐全：$(ls -1 dist/download | tr '\n' ' ')"
+# 下载页的电子版体积：生成站点时文件还没到手，这里补上（幂等，缺文件就不填）
+python3 tools/annotate_downloads.py --site dist --quiet || true
 echo "构建完成 → dist/（$(find dist -name '*.html' | wc -l | tr -d ' ') 个页面）"
