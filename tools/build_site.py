@@ -1035,7 +1035,7 @@ def index_body(b):
         for s in b["sections"])
     return f"""      <div class="b-hero">
         <h1>{html.escape(hltb.TITLE)}</h1>
-        <p class="b-lede">按性价比排序的 {total} 条建议，来自 <a href="{b['source']['repo']}" target="_blank" rel="noopener nofollow">eternity4719/HowToLiveBetter</a>。
+        <p class="b-lede">按性价比排序的 {total} 条循证建议。
            每条写明花掉什么、换回什么、证据有多硬，来源只引期刊论文与官方文件。</p>
         <div class="b-cta">
           <a class="b-btn primary" href="search.html#ratio=%E6%9E%81%E9%AB%98">我该做哪几条（{top} 条零成本高收益）</a>
