@@ -17,7 +17,7 @@ import {
 export const SERVER_NAME = "howtolivebetter";
 export const SERVER_VERSION = "0.1.0";
 
-const INSTRUCTIONS = `《高性价比人生指南》（HowToLiveBetter）的检索工具，672 条按性价比排序的循证建议。
+const instructions = (n: number) => `《高性价比人生指南》（HowToLiveBetter）的检索工具，${n} 条按性价比排序的循证建议。
 
 用法：先用 search 找相关条目，再把原文读给用户，并注明「第 X 节第 Y 条」。
 规则（重要）：
@@ -35,7 +35,7 @@ const multi = (values: readonly string[], desc: string) =>
 export function buildServer(book: Book = loadBook()): McpServer {
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
-    { instructions: INSTRUCTIONS },
+    { instructions: instructions(book.entries.length) },
   );
 
   server.registerTool(

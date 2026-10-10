@@ -397,6 +397,36 @@ details.b-more[open] > summary { margin-bottom: .6rem; }
 .b-lf b { font-weight: 600; }
 .b-lf span { color: var(--muted); font-size: .84rem; margin-left: .6rem; }
 
+/* 性价比分布图（/map.html）：canvas 交互 + noscript 静态图兜底（工具页允许 JS，但没 JS 也得能看） */
+.b-mapbar[hidden], .b-mapwrap[hidden] { display: none !important; }   /* hidden 要压过 flex */
+.b-mapbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.1rem 0 .7rem; }
+.b-mapbar button { font: inherit; font-size: .85rem; padding: .35rem .85rem; border: 1px solid var(--hairline);
+                   background: var(--paper); color: var(--ink-secondary); border-radius: 999px; cursor: pointer; }
+.b-mapbar button:hover { border-color: var(--ink-secondary); }
+.b-mapbar button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.b-mapbar button[data-reset] { margin-left: auto; }
+.b-mapwrap { position: relative; margin: .2rem 0 .6rem; border: 1px solid var(--hairline); border-radius: 10px;
+             background: var(--paper-soft); overflow: hidden; }
+.b-mapcanvas { display: block; width: 100%; height: 460px; cursor: grab; touch-action: none; }
+.b-mapcard { position: absolute; top: 0; left: 0; width: min(21rem, calc(100% - 1rem)); background: var(--paper);
+             border: 1px solid var(--hairline); border-radius: 8px; padding: .7rem .85rem;
+             box-shadow: 0 6px 18px rgba(38, 41, 47, .12); }
+.b-mapcard b { display: block; font-size: .95rem; line-height: 1.45; }
+.b-mapcard .k { display: block; margin-top: .35rem; font-size: .75rem; color: var(--muted); }
+.b-mapcard .t { margin: .45rem 0 .55rem; font-size: .82rem; line-height: 1.65; color: var(--ink-secondary); }
+.b-mapcard .hint { display: block; font-size: .78rem; color: var(--accent); }
+.b-mapcanvas.grabbing { cursor: grabbing; }
+@media (max-width: 640px) { .b-mapcanvas { height: 360px; } }
+
+/* 静态兜底（noscript）与打印：窄屏横向可滚，不压缩气泡 */
+.b-scatterwrap { margin: 1.2rem 0 .4rem; overflow-x: auto; }
+.b-scatter { display: block; width: 100%; min-width: 560px; height: auto; }
+.b-legend { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: center;
+            margin: .6rem 0 0; font-size: .85rem; color: var(--ink-secondary); }
+.b-legend i.b-lg-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%;
+            margin-right: .35rem; vertical-align: -1px; }
+.b-legend .b-lg-note { color: var(--muted); font-size: .8rem; }
+
 /* 正文小标题的节奏 + 上一/下一条 */
 .article-body h2 { margin: 2rem 0 .6rem; font-size: 1.16rem; }
 .article-body h2:first-child { margin-top: .4rem; }
@@ -533,7 +563,12 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_l
   <meta property="og:type" content="article">
   <meta property="og:url" content="{canonical}">
   <meta property="og:site_name" content="{html.escape(hltb.TITLE)}">
-  <meta name="twitter:card" content="summary">
+  <meta property="og:image" content="{base}/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="《{html.escape(hltb.TITLE)}》在线阅读：按性价比排序的建议">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{base}/og.png">
   {SHARED_CSS}
   <link rel="stylesheet" href="{up}style.css?v={STYLE_VERSION}">
 {HEAD_PREFS}
@@ -544,6 +579,7 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_l
       <a class="b-brand" href="{up}index.html">{html.escape(hltb.TITLE)}</a>
       <div class="b-links">
         <a href="{up}scenes/">场景</a>
+        <a href="{up}map.html">分布图</a>
         <a href="{up}search.html">检索</a>
         <a href="{up}download.html">下载</a>
         <a href="{up}about.html">关于与许可</a>
@@ -556,7 +592,7 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_l
     <div class="container">
 {body}
       <div class="b-smallprint">
-        <p>非官方转载《{html.escape(hltb.TITLE)}》· 作者 eternity4719 · 正文未改动 · <a href="{up}about.html">署名与许可</a></p>
+        <p>转载《{html.escape(hltb.TITLE)}》· 作者 eternity4719 · 正文未改动 · <a href="{up}about.html">署名与许可</a></p>
         {('<p>%s</p>' % DISCLAIMER) if with_legal else ''}
       </div>
     </div>
@@ -567,6 +603,112 @@ def page(title, desc, body, base, path, ld=None, depth=0, extra_js=False, with_l
 </body>
 </html>
 """
+
+
+try:
+    MAP_JS = open(os.path.join(ROOT, "tools", "map.js"), encoding="utf-8").read()
+except OSError:
+    MAP_JS = ""
+
+
+def map_json(entries):
+    """交互图的数据（/map.json）：每条一行，只放画图与跳转要用的。
+    [url, 节, 条, 标题, 投入分, 收益, 档]  —— 悬停不出卡片了，所以不带正文（省 3/4 体积）"""
+    rows = []
+    for e in entries:
+        said = re.sub(r"\s+", " ", (e["fields"].get("说人话") or e["title"])).strip()
+        rows.append(["%02d/%02d.html" % (e["sec"], e["num"]), e["sec"], e["num"], e["title"],
+                     e["cost"], e["tags"].get("收益", "中"), e["ratio"],
+                     e["lv"], said[:70]])
+    return rows
+
+
+def scatter_svg(entries, w=760, h=420, dot_max=34, pad=(56, 34, 42, 74), font=13, dot_link=False):
+    """把 676 条画成「投入 × 收益」的气泡图（静态 SVG，零 JS）。
+
+    横轴 = 书里算的投入分（钱 / 时间 / 毅力按上游权重相加，0–6）；
+    纵轴 = 收益（小 / 中 / 大）。**颜色是书里自己算出的性价比档** —— 因为书里的档就是
+    由这两维推出来的（收益大 + 投入 0 = 极高），所以这张图等于把那套算法摊开给人看。
+    气泡面积 ∝ 条数；每格带 <title>，鼠标悬停能看到"多少条、书里算什么档"。
+    """
+    from collections import Counter
+    cells = Counter((e["cost"], e["tags"].get("收益", "中")) for e in entries)
+    ratios = {(e["cost"], e["tags"].get("收益", "中")): e["ratio"] for e in entries}
+    l, r, t, b = pad
+    iw, ih = w - l - r, h - t - b
+    ys = {"大": 0, "中": 1, "小": 2}
+    n_max = max(cells.values()) if cells else 1
+    col = {"极高": "var(--accent)", "高": "var(--ink-secondary)", "一般": "var(--muted)"}
+    out = ['<svg class="b-scatter" viewBox="0 0 %d %d" role="img" aria-label="676 条建议的性价比分布">' % (w, h)]
+    # 网格：横轴 0–6（投入），纵轴 收益 三档
+    for cx in range(7):
+        x = l + iw * cx / 6
+        out.append('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="var(--hairline-soft)"/>'
+                   % (x, t, x, t + ih))
+        out.append('<text x="%.1f" y="%.1f" font-size="%d" fill="var(--muted)" text-anchor="middle">%d</text>'
+                   % (x, t + ih + 22, font, cx))
+    for name, i in ys.items():
+        y = t + ih * (i + 0.5) / 3
+        out.append('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="var(--hairline-soft)"/>'
+                   % (l, y, l + iw, y))
+        out.append('<text x="%.1f" y="%.1f" font-size="%d" fill="var(--ink-secondary)">%s</text>'
+                   % (l - 12, y + 5, font + 1, name))
+    for (cost, ben), n in sorted(cells.items()):
+        cx = l + iw * cost / 6
+        cy = t + ih * (ys[ben] + 0.5) / 3
+        rr = dot_max * (n / n_max) ** 0.5
+        ratio = ratios.get((cost, ben), "")
+        tip = "投入 %d × 收益%s：%d 条（书里算「%s」）" % (cost, ben, n, ratio)
+        out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s" fill-opacity="%.2f" '
+                   'stroke="var(--paper)" stroke-width="1.5"><title>%s</title></circle>'
+                   % (cx, cy, rr, col.get(ratio, "var(--muted)"),
+                      {"极高": 0.85, "高": 0.5}.get(ratio, 0.28), html.escape(tip, quote=True)))
+    out.append('<text x="%.1f" y="%.1f" font-size="%d" fill="var(--muted)" text-anchor="middle">'
+               '投入（钱 / 时间 / 毅力 按书里的权重相加）</text>' % (l + iw / 2, h - 8, font))
+    out.append("</svg>")
+    return "\n".join(out)
+
+
+def map_body(b, entries, base):
+    """性价比分布图：canvas 交互（悬停出条目、点开、按档筛、拖拽缩放）。
+    没有 JS 时 <noscript> 里是同一套数据的静态 SVG —— 页面不会空，搜索引擎和打印也看得到。"""
+    from collections import Counter
+    tally = Counter(e["ratio"] for e in entries)
+    n = len(entries)
+    legend = f"""<p class="b-legend">
+        <span><i class="b-lg-dot" style="background:var(--accent)"></i>书里算「极高」{tally.get('极高', 0)}</span>
+        <span><i class="b-lg-dot" style="background:var(--ink-secondary)"></i>「高」{tally.get('高', 0)}</span>
+        <span><i class="b-lg-dot" style="background:var(--muted)"></i>「一般」{tally.get('一般', 0)}</span>
+        <span class="b-lg-note">气泡大小 = 这一格有多少条　·　拖动平移　·　滚轮缩放</span>
+      </p>"""
+    return f"""      <nav class="breadcrumb"><a href="./">目录</a> <span class="sep">›</span> <span class="cur">性价比分布</span></nav>
+      <div class="b-hero">
+        <h1>性价比分布</h1>
+        <p>把全部 {n} 条点在一张图上：横轴是<strong>投入</strong>（钱 / 时间 / 毅力按书里的权重相加，0–6），
+           纵轴是<strong>收益</strong>，颜色是<strong>书里算出的性价比档</strong> —— 书里的档就是这两维推出来的，
+           所以这张图等于把那套算法摊开给人看。<strong>鼠标移到点上会高亮，点一下就打开那一条</strong>；
+           也可以只看某一档。</p>
+      </div>
+      <div class="b-mapbar" hidden>
+        <button type="button" data-ratio="all" class="on">全部 {n}</button>
+        <button type="button" data-ratio="极高">极高 {tally.get('极高', 0)}</button>
+        <button type="button" data-ratio="高">高 {tally.get('高', 0)}</button>
+        <button type="button" data-ratio="一般">一般 {tally.get('一般', 0)}</button>
+        <button type="button" data-reset="1">重置视图</button>
+      </div>
+      <div class="b-mapwrap" hidden>
+        <canvas id="hltb-map" class="b-mapcanvas" aria-label="{n} 条建议的性价比分布图"></canvas>
+        <div class="b-mapcard" hidden></div>
+      </div>
+      <div class="b-mapstatic">
+        <div class="b-scatterwrap">{scatter_svg(entries)}</div>
+      </div>
+      {legend}
+      <p class="b-stat">书里的规则：收益「大」且投入 0 → <strong>极高</strong>（{tally.get('极高', 0)} 条）；
+           收益「大」且投入 ≤2 → 高；收益「中」且投入 0 → 高；其余 → 一般。</p>
+      <p class="b-stat"><a href="search.html#ratio=%E6%9E%81%E9%AB%98">只看这 {tally.get('极高', 0)} 条极高 →</a>
+         　·　<a href="search.html">去检索全部 {n} 条 →</a></p>
+      <script>{MAP_JS}</script>"""
 
 
 def badge_html(e):
@@ -915,6 +1057,8 @@ def about_body(b):
       </div>
       <div class="article-body">
         <h2>这是转载</h2>
+        <p><strong>本站是第三方转载</strong>：与作者、与原始仓库没有关系；书名与作者署名只用于说明出处。
+           上游要求转载时写明出处、附许可链接、说明是否改动 —— 三件都在下面写清。</p>
         <p>本站正文全部来自 <a href="{src['repo']}" target="_blank" rel="noopener nofollow">eternity4719/HowToLiveBetter</a>
            （《{html.escape(hltb.TITLE)}》），按
            <a href="{src['license_url']}" target="_blank" rel="noopener nofollow">{src['license']}</a> 许可转载。
@@ -1231,7 +1375,7 @@ def main():
         sec = {"num": s["n"], "title": s["t"], "question": s["q"],
                "intro": s.get("intro", ""), "entries": []}
         for e in by_sec.get(s["n"], []):
-            it = {"sec": e["s"], "num": e["n"], "title": e["t"], "tags": e["g"],
+            it = {"sec": e["s"], "num": e["n"], "title": e["t"], "tags": e["g"], "cost": e.get("cost", 0),
                   "fields": e["f"], "xrefs": [tuple(x) for x in e["x"]],
                   "ratio": e["ratio"], "lv": e["lv"], "lvNote": e["lvNote"],
                   "sec_title": s["t"]}
@@ -1361,6 +1505,14 @@ def main():
                            "url": "%s/%02d/%02d.html" % (base, s["num"], e["num"])}, depth=1, kind="article"),
                   e["title"], e["fields"].get("说人话") or e["title"], 0.7)
 
+    write("map.html", page("性价比分布 - %s" % hltb.TITLE,
+                           "把 %d 条建议按投入与收益点在一张图上，颜色是书里算出的性价比档。" % len(entries),
+                           map_body({"source": src}, entries, base), base, "map.html",
+                           ld={"@context": "https://schema.org", "@type": "WebPage",
+                               "name": "性价比分布", "inLanguage": "zh-CN", "url": base + "/map.html"},
+                           depth=0),
+          "性价比分布", "投入 × 收益 气泡图", 0.6)
+
     write("about.html", page("关于与许可 - %s" % hltb.TITLE,
                              "本站转载自《%s》，CC BY 4.0，正文未作改动。署名、免责与校验说明。" % hltb.TITLE,
                              about_body({"source": src}), base, "about.html",
@@ -1397,6 +1549,10 @@ def main():
     with open(os.path.join(a.out, "search-index.json"), "w", encoding="utf-8") as fh:
         json.dump(idx, fh, ensure_ascii=False, separators=(",", ":"))
 
+    # 分布图数据（只在这一页按需加载；不进 sitemap）
+    with open(os.path.join(a.out, "map.json"), "w", encoding="utf-8") as fh:
+        json.dump(map_json(entries), fh, ensure_ascii=False, separators=(",", ":"))
+
     # sitemap + robots
     today = time.strftime("%Y-%m-%d")
     from urllib.parse import quote
@@ -1408,6 +1564,13 @@ def main():
                  + urls + "</urlset>\n")
     with open(os.path.join(a.out, "robots.txt"), "w", encoding="utf-8") as fh:
         fh.write("User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n" % base)
+
+    # 社交分享图（本地用 tools/make_og.py 生成后入库；这里只负责拷进产物）
+    og_src = os.path.join(ROOT, "deploy", "assets", "og.png")
+    if os.path.exists(og_src):
+        shutil.copyfile(og_src, os.path.join(a.out, "og.png"))
+    else:
+        print("  ⚠️ 没找到 deploy/assets/og.png（分享图会 404；本地跑 tools/make_og.py 生成）")
 
     # 统计
     total = sum(os.path.getsize(os.path.join(dp, f))

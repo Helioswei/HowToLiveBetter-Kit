@@ -1,6 +1,10 @@
 // 端到端测试：像真客户端那样启动服务（stdio），列工具、调工具。
 import assert from "node:assert/strict";
 import { test } from "node:test";
+
+import { loadBook } from "../lib/data.js";
+
+const N = loadBook().entries.length;
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,7 +68,7 @@ test("MCP 端到端：get_entry 与 daily、list_sections", async () => {
     const day = await client.callTool({ name: "daily", arguments: { date: "2026-10-09" } });
     assert.match(day.content[0].text, /今天这一条/);
     const secs = await client.callTool({ name: "list_sections", arguments: {} });
-    assert.match(secs.content[0].text, /34 节 672 条/);
+    assert.match(secs.content[0].text, new RegExp(`34 节 ${N} 条`));
   });
 });
 

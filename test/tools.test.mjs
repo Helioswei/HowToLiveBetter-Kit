@@ -8,9 +8,10 @@ import { credit } from "../lib/format.js";
 
 const book = loadBook();
 
-test("数据完整：672 条 / 34 节", () => {
-  assert.equal(book.entries.length, 672);
-  assert.equal(book.sections.length, 34);
+const N = book.entries.length, SEC = book.sections.length;
+test(`数据完整：${N} 条 / ${SEC} 节`, () => {
+  assert.ok(N > 600, `条数看起来不对：${N}`);          /* 条数随上游变，不写死；这里只防"数据没读全" */
+  assert.equal(SEC, 34);
   // 每条的六个字段里至少要有 成本/收益/证据等级/来源
   for (const e of book.entries) {
     for (const k of ["成本", "收益", "证据等级", "来源"]) {
@@ -84,7 +85,7 @@ test("get_entry：互相指路带上别节的标题", () => {
   const [s, n] = withRef.x[0];
   assert.ok(text.includes(`第 ${s} 节第 ${n} 条`), "指路要写清指向哪一条");
   const titles = titleIndex(book);
-  assert.equal(titles.size, 672);
+  assert.equal(titles.size, N);
 });
 
 test("get_entry：越界时说实话，不编", () => {
@@ -94,7 +95,7 @@ test("get_entry：越界时说实话，不编", () => {
 
 test("list_sections：目录带条数与节点问题", () => {
   const all = sectionsText(book);
-  assert.match(all, /34 节 672 条/);
+  assert.match(all, new RegExp(`${SEC} 节 ${N} 条`));
   const one = sectionsText(book, 13);
   assert.match(one, /第 13 节/);
   assert.match(one, /紧急情况/);

@@ -121,9 +121,9 @@ def main():
             n_longform = len(hltb.longform_files(up))
         except Exception:
             n_scenes = n_longform = 0
-    expect_pages = (len(sections) + len(entries) + 4
+    expect_pages = (len(sections) + len(entries) + 5        # 5 = 首页 / 分布图 / 关于 / 下载 / 检索
                     + ((1 + n_scenes) if n_scenes else 0) + n_longform)
-    info.append("页面 %d 个（期望 %d = %d 节 + %d 条 + 4 个固定页%s%s）"
+    info.append("页面 %d 个（期望 %d = %d 节 + %d 条 + 5 个固定页%s%s）"
                 % (len(pages), expect_pages, len(sections), len(entries),
                    " + 场景 %d 页" % (1 + n_scenes) if n_scenes else "",
                    " + 长文 %d 页" % n_longform if n_longform else ""))
@@ -164,14 +164,26 @@ def main():
         # 3. 脚本只允许两个已知的：阅读设置（每页）+ 检索（检索页）。
         #    正文不依赖任何 JS —— 关掉 JS 照样读，这条由 tools/test_js_off 之外的手段单独验。
         scripts = re.findall(r'<script(?![^>]*type="application/ld\+json")([^>]*)>(.*?)</script>', doc, re.S)
-        limit = 3 if rel == "search.html" else 2
+        limit = 3 if rel in ("search.html", "map.html") else 2
         if len(scripts) > limit:
             no_script_except_search.append("%s 有 %d 段脚本（上限 %d）" % (rel, len(scripts), limit))
         for attrs, body in scripts:
             if "src=" in attrs:
                 no_script_except_search.append("%s 引用了外部脚本：%s" % (rel, attrs.strip()[:60]))
-            elif "hltb.prefs" not in body and "search-index.json" not in body:
+            elif ("hltb.prefs" not in body and "search-index.json" not in body
+                  and "map.json" not in body):
                 no_script_except_search.append("%s 有一段不认识的脚本" % rel)
+
+        # 3b. 工具页（/map.html）必须有"没 JS 也能看"的兜底：
+        #     静态图常驻可见，画布/工具栏默认 hidden 由 JS 换上来（关掉 JS = 直接看静态图）
+        if rel == "map.html":
+            st = re.search(r'(?s)<div class="b-mapstatic">(.*?)</div>\s*(?:<p class="b-legend")', doc)
+            if not st:
+                errors.append("map.html 缺常驻的静态图（关掉 JS 就只剩空画布）")
+            elif st.group(1).count("<circle") < 15:
+                errors.append("map.html 的静态图不像那张图（圆点只有 %d 个）" % st.group(1).count("<circle"))
+            if '<div class="b-mapwrap" hidden>' not in doc or '<div class="b-mapbar" hidden>' not in doc:
+                errors.append("map.html 的画布/工具栏没有默认隐藏（没 JS 时会露出来）")
 
         # 4. canonical 唯一且规范
         m = RE_CANON.search(doc)

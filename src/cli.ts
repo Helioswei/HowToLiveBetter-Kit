@@ -4,6 +4,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { loadBook } from "./data.js";
 import { buildServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
 
 async function main(): Promise<void> {
@@ -18,7 +19,7 @@ async function main(): Promise<void> {
 
   // 只写 stderr，绝不写 stdout
   process.stderr.write(
-    `${SERVER_NAME} ${SERVER_VERSION} 已就绪（672 条 · 正文 CC BY 4.0 转载自 eternity4719/HowToLiveBetter，非官方）\n`,
+    `${SERVER_NAME} ${SERVER_VERSION} 已就绪（${loadBook().entries.length} 条 · 正文 CC BY 4.0 转载自 eternity4719/HowToLiveBetter，非官方）\n`,
   );
 }
 

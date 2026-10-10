@@ -1,7 +1,7 @@
 {
   "name": "howtolivebetter-mcp",
   "version": "0.1.0",
-  "description": "《高性价比人生指南》的 MCP 服务：让 AI 助手先查这 672 条循证建议再回答，每条都注明第几节第几条。非官方，正文 CC BY 4.0 转载自 eternity4719/HowToLiveBetter。",
+  "description": "《高性价比人生指南》的 MCP 服务：让 AI 助手先查这些循证建议再回答，每条都注明第几节第几条。非官方，正文 CC BY 4.0 转载自 eternity4719/HowToLiveBetter。",
   "keywords": [
     "mcp",
     "modelcontextprotocol",
