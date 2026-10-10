@@ -3,6 +3,8 @@
 把《高性价比人生指南》接给 AI 助手用：一个 **MCP 服务** + 一套**国内可访问的静态站**工具。
 
 [![npm](https://img.shields.io/npm/v/howtolivebetter-mcp.svg)](https://www.npmjs.com/package/howtolivebetter-mcp)
+[![code: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![content: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-lightgrey.svg)](LICENSE-CONTENT)
 
 近 700 条建议，34 节。装上一个 MCP 客户端，你问「替朋友担保签不签」，AI 会先去查这本书，
 再把原文读给你听，并注明**出自第几节第几条**；书里没写的，它会说没写。
@@ -206,11 +208,12 @@ test/          单元 + 端到端测试
 
 ## 许可
 
-- **代码：MIT**（见 [LICENSE](LICENSE)）。
+- **代码：MIT**（全文见 [LICENSE](LICENSE)）。
 - **正文：《高性价比人生指南》** 作者 [eternity4719](https://github.com/eternity4719/HowToLiveBetter)，
   许可 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)，**原样转载、未作内容改动**。
   本项目不做任何再授权（CC BY 4.0 第 2(a)(5)(b) 条也不允许转载方施加额外限制）。
-  下游使用时的署名义务见 [LICENSE-CONTENT](LICENSE-CONTENT)。
+  正文许可的全文放在 [LICENSE-CONTENT](LICENSE-CONTENT)（官方那份，原样未改，GitHub 才认得出）。
+  下游使用时的署名义务、以及六项署名落在哪些地方，见 [ATTRIBUTION.md](ATTRIBUTION.md)。
 
 正本以原始仓库为准；本项目可能滞后于上游，每页/每次返回都标注同步到的是哪个提交。
 
