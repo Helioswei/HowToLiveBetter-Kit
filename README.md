@@ -56,6 +56,7 @@ npx -y howtolivebetter-mcp
 | Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json`（macOS） |
 | Cursor | 项目里 `.cursor/mcp.json`，或全局 `~/.cursor/mcp.json` |
 | Claude Code | 一条命令：`claude mcp add howtolivebetter -- npx -y howtolivebetter-mcp` |
+| pi | 一条命令：`pi mcp add howtolivebetter -- npx -y howtolivebetter-mcp`（MCP 支持从 pi 1.0 起） |
 | Cherry Studio / Cline / 其它 | 图形界面里填命令 `npx`，参数 `-y howtolivebetter-mcp` |
 | Hermes Agent | `~/.hermes/config.yaml` 里加 `mcp_servers:`（见下） |
 
