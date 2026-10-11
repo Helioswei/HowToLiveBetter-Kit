@@ -81,8 +81,8 @@ npm install
 npm run sync          # 同步上游正文 → 生成数据 → 编译 → 跑测试
 ```
 
-然后用 `node dist/cli.js` 当命令（把上面配置里的 `npx -y howtolivebetter-mcp`
-换成 `node /绝对路径/HowToLiveBetter-Kit/dist/cli.js`）。
+然后用 `node lib/cli.js` 当命令（把上面配置里的 `npx -y howtolivebetter-mcp`
+换成 `node /绝对路径/HowToLiveBetter-Kit/lib/cli.js`）。
 
 ---
 
