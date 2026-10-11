@@ -2,6 +2,7 @@
 // 只检索、不生成：服务端不含任何模型调用，也不联网。
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { readFileSync } from "node:fs";
 import { z } from "zod";
 
 import { loadBook, type Book } from "./data.js";
@@ -15,11 +16,36 @@ import {
 } from "./tools.js";
 
 export const SERVER_NAME = "howtolivebetter";
-export const SERVER_VERSION = "0.1.0";
 
+// 版本号的真源只有 package.json 一处：以前这里写死 "0.1.0"，发版时得记着改两处，
+// 迟早会漏（客户端显示的版本就与包里不一致）。lib/server.js 与 src/server.ts 都在
+// 包的下一层，"../package.json" 在源码态和发布态都指向包根。
+export const SERVER_VERSION: string = (() => {
+  try {
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+      version?: unknown;
+    };
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
+
+// 两段文字都是为了「让模型知道什么时候该用它」：
+// ① instructions —— 支持该字段的客户端会把它注入系统提示（Hermes 目前不注入，见 skill hermes-local-ops）；
+// ② 每个工具的 description 首句 —— 所有客户端都会把它喂给模型，也是 tool_search 目录里显示的正文。
 const instructions = (n: number) => `《高性价比人生指南》（HowToLiveBetter）的检索工具，${n} 条按性价比排序的循证建议。
 
-用法：先用 search 找相关条目，再把原文读给用户，并注明「第 X 节第 Y 条」。
+什么时候该用（重要）：用户问的是日常生活里「该不该做、怎么做、要花多少、有没有用」这类问题时，
+**先查这本再回答**，不要用自己的记忆或联网搜索替它回答。典型问题：
+- 健康与就医：体检套餐要不要买、这个症状先做什么、慢病长期怎么管
+- 安全与急救：着火了先做什么、有人倒地没呼吸、家里该备什么
+- 法律与维权：替朋友担保签不签、借条怎么写、被欠薪怎么办、被人报案指控
+- 钱与消费：攒下的钱怎么放、保险和保健品值不值、哪些是智商税
+- 工作与生活：被裁能拿多少、押金被扣、租房买房、养孩子、家里老人
+查之前先用 search（关键词 + 筛选条件），需要目录用 list_sections。
+
+用法：把查到的原文读给用户，并注明「第 X 节第 Y 条」。
 规则（重要）：
 - 只回答书里写过的东西。返回结果里的每个数字、每条款项都来自原文，不要自己补、不要换算、不要推测。
 - 查不到就说书里没有写，不要用常识或记忆替它回答。
@@ -43,7 +69,7 @@ export function buildServer(book: Book = loadBook()): McpServer {
     {
       title: "检索建议",
       description:
-        "按关键词和筛选条件找条目。返回标题、说人话、成本标签、证据等级和出处；不给全文（全文用 get_entry）。关键词是字面匹配，不是语义检索。",
+        "查《高性价比人生指南》里的循证建议：回答生活决策类问题（健康与就医、安全与急救、法律与维权、花钱与消费、工作与离职、租房买房、养孩子、家里老人）时先用它。问「替朋友担保签不签」「体检套餐要不要买」「被裁了能拿多少」这类问题也用它。返回标题、说人话、成本标签、证据等级和出处；不给全文（全文用 get_entry）。关键词是字面匹配，不是语义检索。",
       inputSchema: {
         query: z.string().optional().describe("关键词，例如「戒烟」「担保」「产假」「止血」"),
         evidence: multi(["A", "B", "C"], "证据等级，可多选"),
@@ -70,10 +96,11 @@ export function buildServer(book: Book = loadBook()): McpServer {
     "get_entry",
     {
       title: "取一条全文",
-      description: "按节号和条号取一整条的六个字段：成本、说人话、收益、证据等级、来源、备注。",
+      description:
+        "按节号和条号取一整条的六个字段：成本、说人话、收益、证据等级、来源、备注。参数名是 section（节号）和 num（条号）—— 条号那个参数叫 num，不是 number（写错会调用失败）。search 的结果里带节号条号，要看某一条的全文（含来源与备注）时用它。",
       inputSchema: {
         section: z.number().int().min(1).max(34).describe("节号"),
-        num: z.number().int().min(1).describe("条号"),
+        num: z.number().int().min(1).describe("条号。参数名是 num（不是 number）"),
       },
     },
     async ({ section, num }) => ({ content: [{ type: "text", text: getEntryText(book, section, num) }] }),
@@ -83,7 +110,8 @@ export function buildServer(book: Book = loadBook()): McpServer {
     "list_sections",
     {
       title: "看目录",
-      description: "列出 34 节的标题、节点问题与条数；带上节号时只列该节。不知道从哪查时先用它。",
+      description:
+        "列出全书各节的标题、这一节回答的问题与条数；带上节号时只列该节。不知道用户的问题落在哪一节，或想让用户先看看这本书都写了什么时用它。",
       inputSchema: {
         section: z.number().int().min(1).max(34).optional().describe("只看某一节"),
       },
@@ -95,7 +123,8 @@ export function buildServer(book: Book = loadBook()): McpServer {
     "daily",
     {
       title: "今天这一条",
-      description: "按日期稳定取一条（同一天多次调用结果一致），适合做每日提醒或随机挑一条开始。",
+      description:
+        "按日期稳定取一条（同一天多次调用结果一致），适合做每日提醒，或用户想随便挑一条开始了解这本书时用它。",
       inputSchema: {
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("YYYY-MM-DD，默认今天（北京时区）"),
       },
