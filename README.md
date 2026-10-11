@@ -6,7 +6,7 @@
 [![code: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 [![content: CC BY 4.0](https://img.shields.io/badge/content-CC%20BY%204.0-lightgrey.svg)](LICENSE-CONTENT)
 
-近 700 条建议，34 节。装上一个 MCP 客户端，你问「替朋友担保签不签」，AI 会先去查这本书，
+三十多节、数百条建议，每一条都写明成本、收益和证据等级。装上一个 MCP 客户端，你问「替朋友担保签不签」，AI 会先去查这本书，
 再把原文读给你听，并注明**出自第几节第几条**；书里没写的，它会说没写。
 
 **非官方项目**，与原作者无关联。正文一个字未改，只做了结构化解析与排版处理。
@@ -20,9 +20,9 @@
 
 | 部分 | 状态 |
 |:---|:---|
-| MCP 服务（四个工具） | ✅ 可用，19 个测试全绿 |
-| npm 包 [`howtolivebetter-mcp`](https://www.npmjs.com/package/howtolivebetter-mcp) | ✅ 已发布 0.1.0（npx 真装真连验过；国内镜像已同步） |
-| 在线阅读版 [`better.aigcwei.cn`](https://better.aigcwei.cn/) | ✅ 已上线：710 页，含检索与「我的清单」、阅读设置（字号/行距/深色）与朗读 |
+| MCP 服务（四个工具） | ✅ 可用，单元与端到端测试全绿 |
+| npm 包 [`howtolivebetter-mcp`](https://www.npmjs.com/package/howtolivebetter-mcp) | ✅ 已发布（当前版本见本页顶部徽章；npx 真装真连验过；国内镜像已同步） |
+| 在线阅读版 [`better.aigcwei.cn`](https://better.aigcwei.cn/) | ✅ 已上线（页数随上游增长，不在这里写死），含检索与「我的清单」、阅读设置（字号/行距/深色）与朗读 |
 | 每日自动同步上游 | ✅ 已配（`.github/workflows/sync.yml`） |
 | 站点每日自动重打包 | ✅ 已配（`.github/workflows/site.yml`） |
 
@@ -30,7 +30,12 @@
 
 ## 30 秒装上
 
-已发布到 npm：`npx -y howtolivebetter-mcp`（国内镜像 registry.npmmirror.com 已同步，装得快）。
+已发布到 npm（国内镜像 registry.npmmirror.com 已同步，装得快）：
+
+```bash
+npx -y howtolivebetter-mcp
+```
+
 一行配置就够了（不需要 API key、不需要联网）：
 
 ```json
@@ -89,12 +94,12 @@ npm run sync          # 同步上游正文 → 生成数据 → 编译 → 跑�
 - 孩子发烧，家里那几种退烧药哪些不能给？
 - 攒了 20 万，怎么放才不被费率和骗局吃掉？
 
-真实返回长这样（问「担保」，节选）：
+真实返回长这样（问「担保」，节选；提交号和条数每次同步都会变，这里写成占位）：
 
 ```
 高性价比人生指南 · 作者 eternity4719 · CC BY 4.0 · 非官方转载（正文未改动，只做了结构化与排版处理）
 许可 https://creativecommons.org/licenses/by/4.0/ ｜ 原始仓库 https://github.com/eternity4719/HowToLiveBetter
-同步自上游 33362aff50（2026-10-10）｜ 共 677 条 / 34 节
+同步自上游 <提交号>（<同步日期>）｜ 共 N 条 / M 节
 
 【第 8 节第 18 条】借钱写清借条，替人担保前先想清楚自己愿不愿意替他还
   性价比 极高 · 收益 大 · 证据 A 级 · 口径 金钱 · 成本 钱0/时间少/毅力否
@@ -110,7 +115,7 @@ npm run sync          # 同步上游正文 → 生成数据 → 编译 → 跑�
 |:---|:---|:---|
 | `search` | 按关键词 + 条件找条目，返回标题、说人话、成本标签、证据等级、出处 | `query`、`evidence`(A/B/C)、`money`(0/少/多)、`time`(少/中/多)、`will`(否/些/是)、`benefit`(大/中/小)、`caliber`(死亡率/金钱/时间/自由)、`ratio`(极高/高/一般)、`section`、`limit` |
 | `get_entry` | 按节号 + 条号取一整条（成本 / 说人话 / 收益 / 证据等级 / 来源 / 备注） | `section`、`num` |
-| `list_sections` | 34 节目录，带每节回答的问题和条数 | `section`（可选） |
+| `list_sections` | 全书目录，带每节回答的问题和条数 | `section`（可选） |
 | `daily` | 按日期稳定取一条，同一天同一条 | `date`（可选） |
 
 筛选口径来自书上自己的标签，不是我们发明的：成本按「钱 / 时间 / 毅力」各三档，
@@ -131,7 +136,7 @@ npm run sync          # 同步上游正文 → 生成数据 → 编译 → 跑�
 **3. 保真校验是可以自己跑的。**
 
 ```bash
-python3 tools/check_verbatim.py     # 逐字段比对上游原文：8064 项，0 失配
+python3 tools/check_verbatim.py     # 逐字段比对上游原文，0 失配
 python3 tools/test_detection.py     # 六种破坏方式，检测器必须全部抓到
 ```
 
@@ -149,13 +154,13 @@ python3 tools/test_detection.py     # 六种破坏方式，检测器必须全部
 并注明出自第几节第几条；书里没写的，它会说没写。
 写这个仓库的时候，这本书还没有给 AI 用的接口 —— 这就是它存在的理由。
 
-**2. 给国内读者用：`better.aigcwei.cn`（部署中）**
+**2. 给国内读者用：`better.aigcwei.cn`**
 
 同一份解析结果再渲染成一个静态站，为国内读者准备：
 
 - **能被搜索引擎搜到**：每节一页、每条一个独立链接，面向百度收录。
 - **每一条能单独发出去**：`/08/18.html` 这样一个地址，微信里能直接发「你看这条」。
-- **弱网也能读**：正文不依赖 JS（阅读设置与检索是仅有的两处脚本，内联在页面里，不额外发请求），无外部字体，打开一页一次请求（最重的一节 gzip 约 58KB）。
+- **弱网也能读**：正文不依赖 JS（阅读设置与检索是仅有的两处脚本，内联在页面里，不额外发请求），无外部字体，打开一页一次请求。
 
 两样东西共用同一份解析结果，所以内容永远一致 —— 上游改一个字，MCP 和站点同时对齐。
 
@@ -174,7 +179,7 @@ python3 tools/test_detection.py     # 六种破坏方式，检测器必须全部
 
 上游一天改好几轮的库，我们自己不盯：
 
-- **每天 06:00（北京）** 自动检查上游提交，没变就跳过（不产生噪音提交）。
+- **每 6 小时**（北京 06:00 / 12:00 / 18:00 / 00:00）自动检查上游提交，没变就跳过（不产生噪音提交）。
 - 变了 → 重新解析 → 过四道检查 → 更新内容指纹并提交。
 - **任何一步失败自动开 issue**（附运行链接和本地复现命令）。
 - 内容指纹只存哈希（`sync/fingerprint.json`），所以"上游哪天动了哪几条"在 git 历史里查得到，
@@ -191,7 +196,7 @@ python3 tools/test_detection.py     # 六种破坏方式，检测器必须全部
 ```bash
 npm install
 npm run sync        # 同步 → 解析 → 体检 → 保真 → 数据 → 指纹 → 编译 → 测试
-npm test            # 14 个单元 + 5 个端到端（真起 stdio 服务）
+npm test            # 单元 + 端到端（真起 stdio 服务）
 npm run typecheck
 ```
 
