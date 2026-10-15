@@ -1,6 +1,6 @@
 {
-"commit": "8d4c6368aa8f33abc37c1084bc464efdd28a8fbd",
-"commit_short": "8d4c6368aa",
+"commit": "5f210ca953b7b538c042ad8515d5c355b766a194",
+"commit_short": "5f210ca953",
 "count": 765,
 "entries": {
 "1.1": "a2eb50117671",
@@ -769,7 +769,7 @@
 "9.8": "ef480b889fda",
 "9.9": "6332031a38bf"
 },
-"generated_at": "2026-10-15T09:01:52+0000",
+"generated_at": "2026-10-15T14:46:28+0000",
 "note": "只存哈希，不含正文。条目哈希 = sha1(标题 + 六个字段 + 五个标签)[:12]",
 "section_titles": {
 "1": "7ee547847f27",
